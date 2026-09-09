@@ -107,6 +107,7 @@ class POSApp(tk.Tk):
         ttk.Label(top, text=self.t("title"), style="Header.TLabel").pack(side="left")
         ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
         ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
+        ttk.Button(top, text="菜單編輯 / Edit", command=self.show_menu_editor).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
@@ -315,6 +316,60 @@ class POSApp(tk.Tk):
         for i in range(4): grid.columnconfigure(i, weight=1)
         for i in range(len(keys)): grid.rowconfigure(i, weight=1)
         display.focus_set()
+
+    def show_menu_editor(self):
+        win = tk.Toplevel(self); win.title("菜單編輯 / Menu Editor"); win.geometry("780x560"); win.transient(self)
+        frame = ttk.Frame(win, padding=12); frame.pack(fill="both", expand=True)
+        tree = ttk.Treeview(frame, columns=("category", "name", "price", "barcode", "image"), show="headings", height=15)
+        for col, title, width in [("category", "分類 / Category", 120), ("name", "名稱 / Name", 190), ("price", "價格 / Price", 80), ("barcode", "條碼 / Barcode", 120), ("image", "圖片 / Image", 180)]:
+            tree.heading(col, text=title); tree.column(col, width=width)
+        tree.pack(fill="both", expand=True)
+        def reload_rows():
+            for item in tree.get_children(): tree.delete(item)
+            for i, (category, name, price, image, barcode) in enumerate(self.menu):
+                tree.insert("", "end", iid=str(i), values=(localized(category, self.lang), localized(name, self.lang), f"{price:g}", barcode, image))
+        reload_rows()
+        form = ttk.Frame(frame); form.pack(fill="x", pady=10)
+        vars_ = [tk.StringVar() for _ in range(5)]
+        labels = ["分類", "名稱", "價格", "條碼", "圖片路徑"]
+        for i, (label, var) in enumerate(zip(labels, vars_)):
+            ttk.Label(form, text=label).grid(row=0, column=i, sticky="w")
+            ttk.Entry(form, textvariable=var, width=[14, 22, 10, 15, 22][i]).grid(row=1, column=i, padx=(0, 6), sticky="ew")
+        selected = tk.StringVar()
+        def load_selected(event=None):
+            sel = tree.selection()
+            if not sel: return
+            selected.set(sel[0]); category, name, price, image, barcode = self.menu[int(sel[0])]
+            vals = [localized(category, self.lang), localized(name, self.lang), str(price), barcode, image]
+            for var, val in zip(vars_, vals): var.set(val)
+        tree.bind("<<TreeviewSelect>>", load_selected)
+        def save_menu():
+            new_menu = []
+            for category, name, price, image, barcode in self.menu:
+                if isinstance(category, dict): category = {**category, self.lang: localized(category, self.lang)}
+                if isinstance(name, dict): name = {**name, self.lang: localized(name, self.lang)}
+                new_menu.append((category, name, price, image, barcode))
+            self.menu = new_menu
+            payload = [{"category": c, "name": n, "price": p, "image": i, "barcode": b} for c, n, p, i, b in self.menu]
+            save_json(MENU_FILE, payload); self.build_ui(); win.destroy()
+        def add_row():
+            try: price = float(vars_[2].get())
+            except ValueError: return messagebox.showerror("Error", "價格必須是數字", parent=win)
+            if not vars_[0].get().strip() or not vars_[1].get().strip(): return messagebox.showerror("Error", "分類與名稱不可為空", parent=win)
+            self.menu.append((vars_[0].get().strip(), vars_[1].get().strip(), price, vars_[4].get().strip(), vars_[3].get().strip())); reload_rows()
+            for var in vars_: var.set("")
+        def update_row():
+            if selected.get() == "": return
+            try: price = float(vars_[2].get())
+            except ValueError: return messagebox.showerror("Error", "價格必須是數字", parent=win)
+            i = int(selected.get()); self.menu[i] = (vars_[0].get().strip(), vars_[1].get().strip(), price, vars_[4].get().strip(), vars_[3].get().strip()); reload_rows()
+        def delete_row():
+            if selected.get() != "": self.menu.pop(int(selected.get())); selected.set(""); reload_rows()
+        actions = ttk.Frame(frame); actions.pack(fill="x")
+        ttk.Button(actions, text="新增 / Add", command=add_row).pack(side="left")
+        ttk.Button(actions, text="修改 / Update", command=update_row).pack(side="left", padx=6)
+        ttk.Button(actions, text="刪除 / Delete", command=delete_row).pack(side="left")
+        ttk.Button(actions, text="儲存 / Save", command=save_menu).pack(side="right")
 
 
 if __name__ == "__main__":
