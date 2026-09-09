@@ -181,6 +181,7 @@ class POSApp(tk.Tk):
         cat = self.cat_var.get() if hasattr(self, "cat_var") else "全部"
         items = sorted([x for x in self.menu if cat == "全部" or localized(x[0], self.lang) == cat], key=lambda x: (localized(x[0], self.lang), localized(x[1], self.lang)))
         self.menu_images = []
+        ttk.Style(self).configure("Menu.TButton", font=(self.settings.get("menu_font", "Segoe UI"), int(self.settings.get("menu_font_size", 10))))
         for i, (group, raw_name, price, image_path, barcode) in enumerate(items):
             name = localized(raw_name, self.lang)
             image = None
@@ -192,7 +193,7 @@ class POSApp(tk.Tk):
                     self.menu_images.append(image)
                 except tk.TclError:
                     image = None
-            b = ttk.Button(self.menu_frame, text=f"{name}\n${price:,.0f}", image=image, compound="top", font=(self.settings.get("menu_font", "Segoe UI"), int(self.settings.get("menu_font_size", 10))), command=lambda n=name, p=price: self.add_item(n, p))
+            b = ttk.Button(self.menu_frame, text=f"{name}\n${price:,.0f}", image=image, compound="top", style="Menu.TButton", command=lambda n=name, p=price: self.add_item(n, p))
             b.grid(row=i//3, column=i%3, sticky="nsew", padx=5, pady=5, ipadx=10, ipady=12)
         for col in range(3): self.menu_frame.columnconfigure(col, weight=1)
 

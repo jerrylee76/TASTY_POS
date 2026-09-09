@@ -5,14 +5,14 @@
     "price": 19.0,
     "image": "images/beef_noodles.png",
     "barcode": ""
-  },
+    },
   {
     "category": "中式",
     "name": "燒餅",
     "price": 15.0,
     "image": "images/ribs_rice.png",
     "barcode": ""
-  },
+    },
   {
     "category": "中式",
     "name": "紅豆餡餅",
@@ -26,14 +26,14 @@
     "price": 40.0,
     "image": "",
     "barcode": ""
-  },
+    },
   {
     "category": "中式",
     "name": "芙蓉酥一粒",
     "price": 28.0,
     "image": "images/ribs_rice.png",
     "barcode": ""
-  },
+    },
   {
     "category": "中式",
     "name": "芙蓉酥二粒",
@@ -47,7 +47,7 @@
     "price": 15.0,
     "image": "",
     "barcode": ""
-  },
+    },
   {
     "category": "中式",
     "name": "葱蛋",
@@ -68,7 +68,7 @@
     "price": 35.0,
     "image": "images/ribs_rice.png",
     "barcode": ""
-  },
+    },
   {
     "category": "中式",
     "name": "雙胞胎",
@@ -89,7 +89,7 @@
     "price": 70.0,
     "image": "",
     "barcode": ""
-  },
+    },
   {
     "category": "小食",
     "name": "蛋餅",
@@ -117,7 +117,7 @@
     "price": 55.0,
     "image": "",
     "barcode": ""
-  },
+    },
   {
     "category": "洋食",
     "name": "甜甜圈",
@@ -145,7 +145,7 @@
     "price": 40.0,
     "image": "",
     "barcode": ""
-  },
+    },
   {
     "category": "洋食",
     "name": "酥皮總匯",
@@ -206,7 +206,7 @@
     "price": 25.0,
     "image": "",
     "barcode": ""
-  },
+    },
   {
     "category": "飲品",
     "name": "奶茶小",
