@@ -311,25 +311,39 @@ class POSApp(tk.Tk):
     def show_order_history(self):
         win = tk.Toplevel(self); win.title("歷史訂單 / Order History"); win.geometry("820x520"); win.transient(self)
         f = ttk.Frame(win, padding=14); f.pack(fill="both", expand=True)
-        search = tk.StringVar(); bar = ttk.Frame(f); bar.pack(fill="x", pady=(0, 10))
-        ttk.Label(bar, text="單號 / Order No.").pack(side="left"); entry = ttk.Entry(bar, textvariable=search, width=28); entry.pack(side="left", padx=8)
+        search = tk.StringVar(); period = tk.StringVar(value="全部 / All"); bar = ttk.Frame(f); bar.pack(fill="x", pady=(0, 10))
+        ttk.Label(bar, text="單號 / Order No.").pack(side="left"); entry = ttk.Entry(bar, textvariable=search, width=22); entry.pack(side="left", padx=8)
+        ttk.Label(bar, text="期間 / Period").pack(side="left"); period_box = ttk.Combobox(bar, textvariable=period, values=["全部 / All", "日 / Day", "週 / Week", "月 / Month", "季 / Quarter", "年 / Year"], state="readonly", width=13); period_box.pack(side="left", padx=8)
         tree = ttk.Treeview(f, columns=("no", "time", "total", "currency", "payment"), show="headings", height=16)
         for col, title, width in [("no", "單號 / No.", 190), ("time", "時間 / Time", 155), ("total", "金額 / Total", 110), ("currency", "幣別", 80), ("payment", "付款 / Payment", 100)]: tree.heading(col, text=title); tree.column(col, width=width, anchor="center")
         tree.pack(fill="both", expand=True)
         def order_no(order, index): return order.get("order_no", f"OLD-{index+1:04d}")
+        def start_time():
+            now = datetime.now(); key = period.get().split(" ")[0]
+            if key == "日": return now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if key == "週": return now - timedelta(days=now.weekday(), hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+            if key == "月": return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if key == "季": return now.replace(month=((now.month - 1)//3)*3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            if key == "年": return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            return None
         def refresh(*_):
             query = search.get().strip().lower()
+            since = start_time()
             for item in tree.get_children(): tree.delete(item)
             for i, order in enumerate(reversed(self.orders)):
                 no = order_no(order, len(self.orders)-1-i)
                 if query and query not in no.lower(): continue
+                if since:
+                    try:
+                        if datetime.fromisoformat(order.get("time", "")) < since: continue
+                    except ValueError: continue
                 tree.insert("", "end", iid=str(len(self.orders)-1-i), values=(no, order.get("time", ""), f"{order.get('total', 0):,.2f}", order.get("currency", "TWD"), order.get("payment", "cash")))
         def detail(event=None):
             selection = tree.selection()
             if not selection: return
             order = self.orders[int(selection[0])]; lines = [f"{self.t('name')}: {x['qty']} x {name} = {x['price']*x['qty']:,.2f}" for name, x in order.get("items", {}).items()]
             messagebox.showinfo(f"Order {order_no(order, int(selection[0]))}", "\n".join(lines) + f"\n\n{self.t('total')}: {order.get('total', 0):,.2f} TWD", parent=win)
-        search.trace_add("write", refresh); tree.bind("<Double-1>", detail); ttk.Button(bar, text="查詢 / Search", command=refresh).pack(side="left")
+        search.trace_add("write", refresh); period.trace_add("write", refresh); tree.bind("<Double-1>", detail); ttk.Button(bar, text="查詢 / Search", command=refresh).pack(side="left")
         def delete_selected():
             selection = tree.selection()
             if not selection: return messagebox.showwarning("", "請先選擇訂單 / Select an order", parent=win)
