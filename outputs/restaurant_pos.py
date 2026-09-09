@@ -108,6 +108,7 @@ class POSApp(tk.Tk):
         ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
         ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
         ttk.Button(top, text="菜單編輯 / Edit", command=self.show_menu_editor).pack(side="right", padx=4)
+        ttk.Button(top, text="歷史訂單 / History", command=self.show_order_history).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
@@ -253,7 +254,7 @@ class POSApp(tk.Tk):
         cash = simpledialog.askfloat(self.t("pay"), f"{self.t('cash')} ({cur})\n{self.t('total')}: {due:,.2f}", minvalue=0, parent=self)
         if cash is None: return
         if cash < due: return messagebox.showerror("", f"不足 / Insufficient: {due-cash:,.2f} {cur}")
-        order = {"time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
+        order = {"order_no": f"{datetime.now():%Y%m%d%H%M%S}-{len(self.orders)+1:03d}", "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
         self.orders.append(order); save_json(ORDERS_FILE, self.orders); self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
     def receipt_text(self, order=None, cash=None):
         o = order or {"subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
@@ -301,6 +302,30 @@ class POSApp(tk.Tk):
         buttons = ttk.Frame(win); buttons.pack(fill="x", padx=25)
         ttk.Button(buttons, text="匯出 CSV / Export CSV", command=export).pack(side="left")
         ttk.Button(buttons, text=self.t("close"), command=win.destroy).pack(side="right")
+
+    def show_order_history(self):
+        win = tk.Toplevel(self); win.title("歷史訂單 / Order History"); win.geometry("820x520"); win.transient(self)
+        f = ttk.Frame(win, padding=14); f.pack(fill="both", expand=True)
+        search = tk.StringVar(); bar = ttk.Frame(f); bar.pack(fill="x", pady=(0, 10))
+        ttk.Label(bar, text="單號 / Order No.").pack(side="left"); entry = ttk.Entry(bar, textvariable=search, width=28); entry.pack(side="left", padx=8)
+        tree = ttk.Treeview(f, columns=("no", "time", "total", "currency", "payment"), show="headings", height=16)
+        for col, title, width in [("no", "單號 / No.", 190), ("time", "時間 / Time", 155), ("total", "金額 / Total", 110), ("currency", "幣別", 80), ("payment", "付款 / Payment", 100)]: tree.heading(col, text=title); tree.column(col, width=width, anchor="center")
+        tree.pack(fill="both", expand=True)
+        def order_no(order, index): return order.get("order_no", f"OLD-{index+1:04d}")
+        def refresh(*_):
+            query = search.get().strip().lower()
+            for item in tree.get_children(): tree.delete(item)
+            for i, order in enumerate(reversed(self.orders)):
+                no = order_no(order, len(self.orders)-1-i)
+                if query and query not in no.lower(): continue
+                tree.insert("", "end", iid=str(len(self.orders)-1-i), values=(no, order.get("time", ""), f"{order.get('total', 0):,.2f}", order.get("currency", "TWD"), order.get("payment", "cash")))
+        def detail(event=None):
+            selection = tree.selection()
+            if not selection: return
+            order = self.orders[int(selection[0])]; lines = [f"{self.t('name')}: {x['qty']} x {name} = {x['price']*x['qty']:,.2f}" for name, x in order.get("items", {}).items()]
+            messagebox.showinfo(f"Order {order_no(order, int(selection[0]))}", "\n".join(lines) + f"\n\n{self.t('total')}: {order.get('total', 0):,.2f} TWD", parent=win)
+        search.trace_add("write", refresh); tree.bind("<Double-1>", detail); ttk.Button(bar, text="查詢 / Search", command=refresh).pack(side="left")
+        ttk.Button(bar, text="關閉 / Close", command=win.destroy).pack(side="right"); refresh(); entry.focus_set()
 
     def show_calculator(self):
         win = tk.Toplevel(self); win.title("計算機 / Calculator"); win.geometry("300x390"); win.resizable(False, False)
