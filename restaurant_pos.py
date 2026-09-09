@@ -1,6 +1,7 @@
 import json
 import os
 import csv
+import math
 import textwrap
 import tkinter as tk
 from datetime import datetime, timedelta
@@ -8,13 +9,15 @@ from tkinter import ttk, messagebox, simpledialog, colorchooser
 
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(os.path.dirname(APP_DIR), "work", "pos_data")
+PROJECT_DIR = os.path.dirname(APP_DIR) if os.path.basename(APP_DIR).lower() == "outputs" else APP_DIR
+DATA_DIR = os.path.join(PROJECT_DIR, "work", "pos_data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 MENU_FILE = os.path.join(APP_DIR, "menu.json")
 
 DEFAULT_SETTINGS = {
     "language": "zh", "tax_rate": 0.05, "currency": "TWD",
+    "history_password": "1234",
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
     "receipt_header": "好味道餐廳\nThank you for dining with us", "receipt_width": 38,
@@ -87,19 +90,36 @@ class POSApp(tk.Tk):
         self.current_category = "全部"
         self.tip_rate = 0
         self.menu_images = []
-        self.title(self.t("title")); self.geometry("1180x720"); self.minsize(980, 620)
+        self.title(self.t("title")); self.geometry("1180x720"); self.minsize(980, 620); self.resizable(False, False); self.protocol("WM_DELETE_WINDOW", self.request_exit)
+        try: self.state("zoomed")
+        except tk.TclError: pass
         self.configure(bg=self.settings.get("theme", "#f4f6f8"))
         self.make_style(); self.build_ui(); self.bind_shortcuts()
         self.after(250, self.show_guide)
 
     def t(self, key): return TEXT[self.lang].get(key, key)
+    def request_exit(self):
+        password = simpledialog.askstring("Password", "請輸入離開密碼 / Exit password", show="*", parent=self)
+        if password is None: return
+        if password != self.settings.get("history_password", "1234"):
+            messagebox.showerror("", "密碼錯誤 / Incorrect password", parent=self); return
+        self.destroy()
     def make_style(self):
         s = ttk.Style(self); s.theme_use("clam")
-        s.configure("TFrame", background=self.settings.get("theme", "#f4f6f8"))
-        s.configure("TLabel", background=self.settings.get("theme", "#f4f6f8"), font=("Segoe UI", 10))
+        self.apply_theme(s)
         s.configure("Header.TLabel", font=("Segoe UI", 18, "bold"))
         s.configure("Card.TFrame", background="white", relief="groove", borderwidth=1)
         s.configure("TButton", padding=7, font=("Segoe UI", 10))
+
+    def apply_theme(self, style=None):
+        color = self.settings.get("theme", "#f4f6f8")
+        self.configure(bg=color)
+        style = style or ttk.Style(self)
+        style.configure("TFrame", background=color)
+        style.configure("TLabel", background=color, font=("Segoe UI", 10))
+        style.configure("TLabelframe", background=color)
+        style.configure("TLabelframe.Label", background=color)
+        style.configure("TCheckbutton", background=color)
 
     def build_ui(self):
         for w in self.winfo_children(): w.destroy()
@@ -107,6 +127,8 @@ class POSApp(tk.Tk):
         ttk.Label(top, text=self.t("title"), style="Header.TLabel").pack(side="left")
         ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
         ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
+        ttk.Button(top, text="菜單編輯 / Edit", command=self.show_menu_editor).pack(side="right", padx=4)
+        ttk.Button(top, text="歷史訂單 / History", command=self.show_order_history).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
@@ -212,27 +234,38 @@ class POSApp(tk.Tk):
         messagebox.showinfo(self.t("guide"), "點選餐點加入訂單，選擇小費與幣別後按 F9 結帳。\n\n快捷鍵：F2 設定、F4 清空、F9 結帳、Ctrl+P 收據、Ctrl+L 語言切換。\n可在設定中調整稅率、收據格式與介面顏色。" if self.lang == "zh" else "Click items to add. Choose tip/currency, then press F9 to checkout.\n\nShortcuts: F2 settings, F4 clear, F9 checkout, Ctrl+P receipt, Ctrl+L language.\nAdjust tax, receipt format and UI color in Settings.")
 
     def show_settings(self):
-        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("480x400")
+        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("620x650"); win.resizable(False, False)
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
-        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); header = tk.Text(f, height=4, width=42); header.insert("1.0", self.settings.get("receipt_header", ""))
-        ttk.Label(f, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w", pady=8); ttk.Entry(f, textvariable=tax, width=12).grid(row=0, column=1, sticky="w")
-        ttk.Label(f, text="Receipt header / 收據抬頭").grid(row=1, column=0, sticky="nw", pady=8); header.grid(row=1, column=1, sticky="w")
-        ttk.Label(f, text="TWD / USD / HKD / JPY rates").grid(row=2, column=0, sticky="w", pady=8)
-        rates = {}; rate_frame = ttk.Frame(f); rate_frame.grid(row=2, column=1, sticky="w")
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234"))
+        tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(tax_box, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w"); ttk.Entry(tax_box, textvariable=tax, width=14).grid(row=0, column=1, sticky="w", padx=12)
+        receipt_box = ttk.LabelFrame(f, text="收據版面 / Receipt Layout", padding=12); receipt_box.pack(fill="x", pady=(0, 12))
+        header = tk.Text(receipt_box, height=4, width=48); header.insert("1.0", self.settings.get("receipt_header", ""))
+        ttk.Label(receipt_box, text="抬頭 / Header").grid(row=0, column=0, sticky="nw"); header.grid(row=0, column=1, rowspan=2, sticky="w", padx=12)
+        ttk.Label(receipt_box, text="寬度 / Width").grid(row=2, column=0, sticky="w", pady=(10, 0)); ttk.Entry(receipt_box, textvariable=width, width=14).grid(row=2, column=1, sticky="w", padx=12, pady=(10, 0))
+        ttk.Checkbutton(receipt_box, text="顯示稅額 / Show tax", variable=show_tax).grid(row=3, column=0, sticky="w", pady=(8, 0)); ttk.Checkbutton(receipt_box, text="顯示小費 / Show tip", variable=show_tip).grid(row=3, column=1, sticky="w", padx=12, pady=(8, 0))
+        currency_box = ttk.LabelFrame(f, text="匯率設定 / Currency Rates（以 TWD=1 為基準）", padding=12); currency_box.pack(fill="x", pady=(0, 12))
+        rates = {}; rate_frame = ttk.Frame(currency_box); rate_frame.pack(anchor="w")
         for i, cur in enumerate(self.settings["rates"]):
-            rates[cur] = tk.StringVar(value=str(self.settings["rates"][cur])); ttk.Label(rate_frame, text=cur).grid(row=i, column=0); ttk.Entry(rate_frame, textvariable=rates[cur], width=10).grid(row=i, column=1)
-        ttk.Label(f, text="介面主題色 / Theme").grid(row=3, column=0, sticky="w", pady=8)
-        ttk.Entry(f, textvariable=theme, width=12).grid(row=3, column=1, sticky="w")
-        ttk.Button(f, text="選擇顏色", command=lambda: self.pick_color(theme)).grid(row=3, column=1, padx=(105, 0), sticky="w")
+            rates[cur] = tk.StringVar(value=str(self.settings["rates"][cur])); ttk.Label(rate_frame, text=cur, width=8).grid(row=0, column=i, padx=4); ttk.Entry(rate_frame, textvariable=rates[cur], width=12).grid(row=1, column=i, padx=4)
+        theme_box = ttk.LabelFrame(f, text="介面主題 / Theme", padding=12); theme_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(theme_box, text="色碼 / Color").pack(side="left"); ttk.Entry(theme_box, textvariable=theme, width=14).pack(side="left", padx=12); ttk.Button(theme_box, text="選擇顏色 / Pick", command=lambda: self.pick_color(theme)).pack(side="left")
+        security_box = ttk.LabelFrame(f, text="安全性 / Security", padding=12); security_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(security_box, text="歷史訂單刪除密碼 / Delete password").pack(side="left"); ttk.Entry(security_box, textvariable=password, show="*", width=16).pack(side="left", padx=12)
         def save():
             try:
                 self.settings["tax_rate"] = float(tax.get()) / 100
                 self.settings["receipt_header"] = header.get("1.0", "end").strip()
                 self.settings["rates"] = {cur: float(v.get()) for cur, v in rates.items()}
                 self.settings["theme"] = theme.get().strip() or "#f4f6f8"
-                save_json(SETTINGS_FILE, self.settings); win.destroy(); self.build_ui()
-            except ValueError: messagebox.showerror("Error", "請輸入有效數字")
-        ttk.Button(f, text=self.t("save"), command=save).grid(row=4, column=1, sticky="e", pady=18)
+                self.winfo_rgb(self.settings["theme"])
+                self.settings["receipt_width"] = max(20, min(80, int(width.get())))
+                self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
+                if not password.get(): raise ValueError("password")
+                self.settings["history_password"] = password.get()
+                save_json(SETTINGS_FILE, self.settings); self.apply_theme(); win.destroy(); self.build_ui()
+            except (ValueError, tk.TclError): messagebox.showerror("Error", "請輸入有效數字或有效色碼，例如 #f4f6f8")
+        action = ttk.Frame(f); action.pack(fill="x", pady=(4, 0)); ttk.Button(action, text="取消 / Cancel", command=win.destroy).pack(side="right"); ttk.Button(action, text=self.t("save"), command=save).pack(side="right", padx=8)
     def pick_color(self, variable):
         chosen = colorchooser.askcolor(color=variable.get(), parent=self)[1]
         if chosen: variable.set(chosen)
@@ -246,13 +279,16 @@ class POSApp(tk.Tk):
         cash = simpledialog.askfloat(self.t("pay"), f"{self.t('cash')} ({cur})\n{self.t('total')}: {due:,.2f}", minvalue=0, parent=self)
         if cash is None: return
         if cash < due: return messagebox.showerror("", f"不足 / Insufficient: {due-cash:,.2f} {cur}")
-        order = {"time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
+        order = {"order_no": f"{datetime.now():%Y%m%d%H%M%S}-{len(self.orders)+1:03d}", "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
         self.orders.append(order); save_json(ORDERS_FILE, self.orders); self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
     def receipt_text(self, order=None, cash=None):
         o = order or {"subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
-        cur = o["currency"]; lines = [self.settings.get("receipt_header", ""), "-"*int(self.settings.get("receipt_width", 38))]
+        cur = o["currency"]; receipt_width = int(self.settings.get("receipt_width", 38)); lines = [self.settings.get("receipt_header", ""), "-"*receipt_width]
         for name, x in o["items"].items(): lines.append(f"{name[:20]:20} x{x['qty']:<2} {x['price']*x['qty']:>8.2f}")
-        lines += ["-"*38, f"{self.t('subtotal')}: {o['subtotal']:,.2f} TWD", f"{self.t('tax')}: {o['tax']:,.2f} TWD", f"{self.t('tip')}: {o['tip']:,.2f} TWD", f"{self.t('total')}: {o['total']*o['rate']:,.2f} {cur}"]
+        lines.append("-"*receipt_width); lines.append(f"{self.t('subtotal')}: {o['subtotal']:,.2f} TWD")
+        if self.settings.get("show_tax", True): lines.append(f"{self.t('tax')}: {o['tax']:,.2f} TWD")
+        if self.settings.get("show_tip", True): lines.append(f"{self.t('tip')}: {o['tip']:,.2f} TWD")
+        lines.append(f"{self.t('total')}: {o['total']*o['rate']:,.2f} {cur}")
         if cash is not None: lines.append(f"{self.t('change')}: {cash-o['total']*o['rate']:,.2f} {cur}")
         return "\n".join(lines) + "\n" + datetime.now().strftime("%Y-%m-%d %H:%M")
     def print_receipt(self, order=None, cash=None):
@@ -261,11 +297,27 @@ class POSApp(tk.Tk):
         with open(path, "w", encoding="utf-8") as f: f.write(self.receipt_text(order, cash))
         messagebox.showinfo(self.t("print"), f"收據已儲存 / Receipt saved:\n{path}")
     def show_stats(self):
-        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("600x430")
+        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("1120x760"); win.minsize(1000, 680)
         period = tk.StringVar(value="日 / Day")
-        ttk.Label(win, text="報表範圍 / Period").pack(anchor="w", padx=25, pady=(20, 5))
-        ttk.Combobox(win, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "年 / Year"], state="readonly", width=18).pack(anchor="w", padx=25)
-        summary = tk.StringVar(); ttk.Label(win, textvariable=summary, font=("Segoe UI", 14), justify="left").pack(anchor="w", padx=25, pady=25)
+        ttk.Label(win, text="業績統計 Dashboard", style="Header.TLabel").pack(anchor="w", padx=25, pady=(18, 4))
+        filter_bar = ttk.Frame(win); filter_bar.pack(fill="x", padx=25, pady=(0, 12))
+        ttk.Label(filter_bar, text="報表範圍 / Period").pack(side="left"); ttk.Combobox(filter_bar, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "季 / Quarter", "年 / Year"], state="readonly", width=18).pack(side="left", padx=10)
+        summary = tk.StringVar(); summary_cards = ttk.Frame(win); summary_cards.pack(fill="x", padx=20, pady=(0, 12))
+        card_values = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
+        for i, (label, var) in enumerate(zip(["訂單數 / Orders", "營業額 / Sales", "小費總額 / Tips"], card_values)):
+            card = ttk.LabelFrame(summary_cards, text=label, padding=12); card.grid(row=0, column=i, sticky="ew", padx=5); ttk.Label(card, textvariable=var, font=("Segoe UI", 18, "bold")).pack(anchor="w"); summary_cards.columnconfigure(i, weight=1)
+        tables = ttk.Frame(win, height=430); tables.pack(fill="both", expand=True, padx=25); tables.pack_propagate(False)
+        item_tree = None; cat_tree = None
+        for column in range(3): tables.columnconfigure(column, weight=1, uniform="stats")
+        tables.rowconfigure(0, weight=1)
+        for column, (kind, first) in enumerate([("category", "種類 / Category"), ("item", "品項 / Item")]):
+            box = ttk.Frame(tables, padding=6); box.grid(row=0, column=column, sticky="nsew", padx=5)
+            tree = ttk.Treeview(box, columns=("category", "qty", "sales") if kind == "category" else ("name", "qty", "sales"), show="headings", height=8)
+            if kind == "category": cat_tree = tree
+            else: item_tree = tree
+            tree.heading(tree["columns"][0], text=first); tree.heading("qty", text="數量 / Qty"); tree.heading("sales", text="銷售額 / Sales"); tree.column(tree["columns"][0], width=150); tree.column("qty", width=65, anchor="center"); tree.column("sales", width=100, anchor="e"); tree.pack(fill="both", expand=True)
+        chart_box = ttk.LabelFrame(tables, text="種類銷售比例 / Category Share", padding=8); chart_box.grid(row=0, column=2, sticky="nsew", padx=5)
+        chart = tk.Canvas(chart_box, width=300, height=390, bg="white", highlightthickness=0); chart.pack()
         def get_rows():
             now = datetime.now(); key = period.get().split(" ")[0]
             if key == "日": start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -280,7 +332,37 @@ class POSApp(tk.Tk):
             return rows
         def refresh():
             rows = get_rows(); sales = sum(o.get("total", 0) for o in rows); tips = sum(o.get("tip", 0) for o in rows)
-            summary.set(f"{self.t('completed')}: {len(rows)}\n{self.t('sales')}: {sales:,.2f} TWD\n{self.t('tip_total')}: {tips:,.2f} TWD")
+            summary.set(f"{self.t('completed')}: {len(rows)} | {self.t('sales')}: {sales:,.2f} TWD | {self.t('tip_total')}: {tips:,.2f} TWD")
+            card_values[0].set(f"{len(rows):,}"); card_values[1].set(f"{sales:,.2f} TWD"); card_values[2].set(f"{tips:,.2f} TWD")
+            item_data = {}; category_data = {}
+            category_by_name = {}
+            for category, raw_name, price, image, barcode in self.menu:
+                category_by_name[localized(raw_name, self.lang)] = localized(category, self.lang)
+                category_by_name[str(raw_name)] = localized(category, self.lang)
+            for order in rows:
+                for name, data in order.get("items", {}).items():
+                    qty = data.get("qty", 0); amount = data.get("price", 0) * qty; category = category_by_name.get(name, "未分類 / Other")
+                    item_data[name] = (item_data.get(name, (0, 0))[0] + qty, item_data.get(name, (0, 0))[1] + amount)
+                    category_data[category] = (category_data.get(category, (0, 0))[0] + qty, category_data.get(category, (0, 0))[1] + amount)
+            for tree in (item_tree, cat_tree):
+                for item in tree.get_children(): tree.delete(item)
+            for name, (qty, amount) in sorted(item_data.items(), key=lambda x: x[1][1], reverse=True): item_tree.insert("", "end", values=(name, qty, f"{amount:,.2f}"))
+            for category, (qty, amount) in sorted(category_data.items(), key=lambda x: x[1][1], reverse=True): cat_tree.insert("", "end", values=(category, qty, f"{amount:,.2f}"))
+            if not item_data: item_tree.insert("", "end", values=("尚無資料 / No data", "-", "-"))
+            if not category_data: cat_tree.insert("", "end", values=("尚無資料 / No data", "-", "-"))
+            chart.delete("all")
+            total_category_sales = sum(value[1] for value in category_data.values())
+            if not total_category_sales:
+                chart.create_text(150, 170, text="尚無資料 / No data", font=("Segoe UI", 13), fill="#777777")
+            else:
+                colors = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316"]
+                angle = 90
+                for index, (category, (qty, amount)) in enumerate(sorted(category_data.items(), key=lambda x: x[1][1], reverse=True)):
+                    extent = amount / total_category_sales * 360
+                    color = colors[index % len(colors)]; chart.create_arc(25, 20, 255, 250, start=angle, extent=-extent, fill=color, outline="white", width=2)
+                    percent = amount / total_category_sales * 100
+                    y = 280 + index * 24; chart.create_rectangle(25, y, 39, y + 14, fill=color, outline=color); chart.create_text(47, y + 7, anchor="w", text=f"{category}: {percent:.1f}% ({amount:,.0f})", font=("Segoe UI", 9))
+                    angle -= extent
         def export():
             rows = get_rows(); path = os.path.join(DATA_DIR, f"sales_report_{datetime.now():%Y%m%d_%H%M%S}.csv"); os.makedirs(DATA_DIR, exist_ok=True)
             with open(path, "w", newline="", encoding="utf-8-sig") as f:
@@ -291,6 +373,52 @@ class POSApp(tk.Tk):
         buttons = ttk.Frame(win); buttons.pack(fill="x", padx=25)
         ttk.Button(buttons, text="匯出 CSV / Export CSV", command=export).pack(side="left")
         ttk.Button(buttons, text=self.t("close"), command=win.destroy).pack(side="right")
+
+    def show_order_history(self):
+        win = tk.Toplevel(self); win.title("歷史訂單 / Order History"); win.geometry("820x520"); win.transient(self)
+        f = ttk.Frame(win, padding=14); f.pack(fill="both", expand=True)
+        search = tk.StringVar(); period = tk.StringVar(value="全部 / All"); bar = ttk.Frame(f); bar.pack(fill="x", pady=(0, 10))
+        ttk.Label(bar, text="單號 / Order No.").pack(side="left"); entry = ttk.Entry(bar, textvariable=search, width=22); entry.pack(side="left", padx=8)
+        ttk.Label(bar, text="期間 / Period").pack(side="left"); period_box = ttk.Combobox(bar, textvariable=period, values=["全部 / All", "日 / Day", "週 / Week", "月 / Month", "季 / Quarter", "年 / Year"], state="readonly", width=13); period_box.pack(side="left", padx=8)
+        tree = ttk.Treeview(f, columns=("no", "time", "total", "currency", "payment"), show="headings", height=16)
+        for col, title, width in [("no", "單號 / No.", 190), ("time", "時間 / Time", 155), ("total", "金額 / Total", 110), ("currency", "幣別", 80), ("payment", "付款 / Payment", 100)]: tree.heading(col, text=title); tree.column(col, width=width, anchor="center")
+        tree.pack(fill="both", expand=True)
+        def order_no(order, index): return order.get("order_no", f"OLD-{index+1:04d}")
+        def start_time():
+            now = datetime.now(); key = period.get().split(" ")[0]
+            if key == "日": return now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if key == "週": return now - timedelta(days=now.weekday(), hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+            if key == "月": return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if key == "季": return now.replace(month=((now.month - 1)//3)*3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            if key == "年": return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            return None
+        def refresh(*_):
+            query = search.get().strip().lower()
+            since = start_time()
+            for item in tree.get_children(): tree.delete(item)
+            for i, order in enumerate(reversed(self.orders)):
+                no = order_no(order, len(self.orders)-1-i)
+                if query and query not in no.lower(): continue
+                if since:
+                    try:
+                        if datetime.fromisoformat(order.get("time", "")) < since: continue
+                    except ValueError: continue
+                tree.insert("", "end", iid=str(len(self.orders)-1-i), values=(no, order.get("time", ""), f"{order.get('total', 0):,.2f}", order.get("currency", "TWD"), order.get("payment", "cash")))
+        def detail(event=None):
+            selection = tree.selection()
+            if not selection: return
+            order = self.orders[int(selection[0])]; lines = [f"{self.t('name')}: {x['qty']} x {name} = {x['price']*x['qty']:,.2f}" for name, x in order.get("items", {}).items()]
+            messagebox.showinfo(f"Order {order_no(order, int(selection[0]))}", "\n".join(lines) + f"\n\n{self.t('total')}: {order.get('total', 0):,.2f} TWD", parent=win)
+        search.trace_add("write", refresh); period.trace_add("write", refresh); tree.bind("<Double-1>", detail); ttk.Button(bar, text="查詢 / Search", command=refresh).pack(side="left")
+        def delete_selected():
+            selection = tree.selection()
+            if not selection: return messagebox.showwarning("", "請先選擇訂單 / Select an order", parent=win)
+            typed = simpledialog.askstring("Password", "請輸入刪除密碼 / Delete password", show="*", parent=win)
+            if typed != self.settings.get("history_password", "1234"): return messagebox.showerror("", "密碼錯誤 / Incorrect password", parent=win)
+            if not messagebox.askyesno("Confirm", "確定刪除這筆歷史訂單？\nDelete this historical order?", parent=win): return
+            self.orders.pop(int(selection[0])); save_json(ORDERS_FILE, self.orders); refresh()
+        ttk.Button(bar, text="刪除 / Delete", command=delete_selected).pack(side="right", padx=6)
+        ttk.Button(bar, text="關閉 / Close", command=win.destroy).pack(side="right"); refresh(); entry.focus_set()
 
     def show_calculator(self):
         win = tk.Toplevel(self); win.title("計算機 / Calculator"); win.geometry("300x390"); win.resizable(False, False)
@@ -315,6 +443,60 @@ class POSApp(tk.Tk):
         for i in range(4): grid.columnconfigure(i, weight=1)
         for i in range(len(keys)): grid.rowconfigure(i, weight=1)
         display.focus_set()
+
+    def show_menu_editor(self):
+        win = tk.Toplevel(self); win.title("菜單編輯 / Menu Editor"); win.geometry("780x560"); win.transient(self)
+        frame = ttk.Frame(win, padding=12); frame.pack(fill="both", expand=True)
+        tree = ttk.Treeview(frame, columns=("category", "name", "price", "barcode", "image"), show="headings", height=15)
+        for col, title, width in [("category", "分類 / Category", 120), ("name", "名稱 / Name", 190), ("price", "價格 / Price", 80), ("barcode", "條碼 / Barcode", 120), ("image", "圖片 / Image", 180)]:
+            tree.heading(col, text=title); tree.column(col, width=width)
+        tree.pack(fill="both", expand=True)
+        def reload_rows():
+            for item in tree.get_children(): tree.delete(item)
+            for i, (category, name, price, image, barcode) in enumerate(self.menu):
+                tree.insert("", "end", iid=str(i), values=(localized(category, self.lang), localized(name, self.lang), f"{price:g}", barcode, image))
+        reload_rows()
+        form = ttk.Frame(frame); form.pack(fill="x", pady=10)
+        vars_ = [tk.StringVar() for _ in range(5)]
+        labels = ["分類", "名稱", "價格", "條碼", "圖片路徑"]
+        for i, (label, var) in enumerate(zip(labels, vars_)):
+            ttk.Label(form, text=label).grid(row=0, column=i, sticky="w")
+            ttk.Entry(form, textvariable=var, width=[14, 22, 10, 15, 22][i]).grid(row=1, column=i, padx=(0, 6), sticky="ew")
+        selected = tk.StringVar()
+        def load_selected(event=None):
+            sel = tree.selection()
+            if not sel: return
+            selected.set(sel[0]); category, name, price, image, barcode = self.menu[int(sel[0])]
+            vals = [localized(category, self.lang), localized(name, self.lang), str(price), barcode, image]
+            for var, val in zip(vars_, vals): var.set(val)
+        tree.bind("<<TreeviewSelect>>", load_selected)
+        def save_menu():
+            new_menu = []
+            for category, name, price, image, barcode in self.menu:
+                if isinstance(category, dict): category = {**category, self.lang: localized(category, self.lang)}
+                if isinstance(name, dict): name = {**name, self.lang: localized(name, self.lang)}
+                new_menu.append((category, name, price, image, barcode))
+            self.menu = new_menu
+            payload = [{"category": c, "name": n, "price": p, "image": i, "barcode": b} for c, n, p, i, b in self.menu]
+            save_json(MENU_FILE, payload); self.build_ui(); win.destroy()
+        def add_row():
+            try: price = float(vars_[2].get())
+            except ValueError: return messagebox.showerror("Error", "價格必須是數字", parent=win)
+            if not vars_[0].get().strip() or not vars_[1].get().strip(): return messagebox.showerror("Error", "分類與名稱不可為空", parent=win)
+            self.menu.append((vars_[0].get().strip(), vars_[1].get().strip(), price, vars_[4].get().strip(), vars_[3].get().strip())); reload_rows()
+            for var in vars_: var.set("")
+        def update_row():
+            if selected.get() == "": return
+            try: price = float(vars_[2].get())
+            except ValueError: return messagebox.showerror("Error", "價格必須是數字", parent=win)
+            i = int(selected.get()); self.menu[i] = (vars_[0].get().strip(), vars_[1].get().strip(), price, vars_[4].get().strip(), vars_[3].get().strip()); reload_rows()
+        def delete_row():
+            if selected.get() != "": self.menu.pop(int(selected.get())); selected.set(""); reload_rows()
+        actions = ttk.Frame(frame); actions.pack(fill="x")
+        ttk.Button(actions, text="新增 / Add", command=add_row).pack(side="left")
+        ttk.Button(actions, text="修改 / Update", command=update_row).pack(side="left", padx=6)
+        ttk.Button(actions, text="刪除 / Delete", command=delete_row).pack(side="left")
+        ttk.Button(actions, text="儲存 / Save", command=save_menu).pack(side="right")
 
 
 if __name__ == "__main__":

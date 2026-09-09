@@ -1,6 +1,7 @@
 import json
 import os
 import csv
+import math
 import textwrap
 import tkinter as tk
 from datetime import datetime, timedelta
@@ -8,7 +9,8 @@ from tkinter import ttk, messagebox, simpledialog, colorchooser
 
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(os.path.dirname(APP_DIR), "work", "pos_data")
+PROJECT_DIR = os.path.dirname(APP_DIR) if os.path.basename(APP_DIR).lower() == "outputs" else APP_DIR
+DATA_DIR = os.path.join(PROJECT_DIR, "work", "pos_data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 MENU_FILE = os.path.join(APP_DIR, "menu.json")
@@ -295,15 +297,27 @@ class POSApp(tk.Tk):
         with open(path, "w", encoding="utf-8") as f: f.write(self.receipt_text(order, cash))
         messagebox.showinfo(self.t("print"), f"收據已儲存 / Receipt saved:\n{path}")
     def show_stats(self):
-        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("850x680")
+        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("1120x760"); win.minsize(1000, 680)
         period = tk.StringVar(value="日 / Day")
-        ttk.Label(win, text="報表範圍 / Period").pack(anchor="w", padx=25, pady=(20, 5))
-        ttk.Combobox(win, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "季 / Quarter", "年 / Year"], state="readonly", width=18).pack(anchor="w", padx=25)
-        summary = tk.StringVar(); ttk.Label(win, textvariable=summary, font=("Segoe UI", 14), justify="left").pack(anchor="w", padx=25, pady=12)
-        tables = ttk.Frame(win); tables.pack(fill="both", expand=True, padx=25)
-        item_tree = ttk.Treeview(tables, columns=("name", "qty", "sales"), show="headings", height=8); cat_tree = ttk.Treeview(tables, columns=("category", "qty", "sales"), show="headings", height=8)
-        for tree, title, first in [(item_tree, "依品項 / By Item", "品項 / Item"), (cat_tree, "依種類 / By Category", "種類 / Category")]:
-            box = ttk.LabelFrame(tables, text=title, padding=6); box.pack(side="left", fill="both", expand=True, padx=5); tree.heading(tree["columns"][0], text=first); tree.heading("qty", text="數量 / Qty"); tree.heading("sales", text="銷售額 / Sales"); tree.column(tree["columns"][0], width=180); tree.column("qty", width=70, anchor="center"); tree.column("sales", width=110, anchor="e"); tree.pack(fill="both", expand=True)
+        ttk.Label(win, text="業績統計 Dashboard", style="Header.TLabel").pack(anchor="w", padx=25, pady=(18, 4))
+        filter_bar = ttk.Frame(win); filter_bar.pack(fill="x", padx=25, pady=(0, 12))
+        ttk.Label(filter_bar, text="報表範圍 / Period").pack(side="left"); ttk.Combobox(filter_bar, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "季 / Quarter", "年 / Year"], state="readonly", width=18).pack(side="left", padx=10)
+        summary = tk.StringVar(); summary_cards = ttk.Frame(win); summary_cards.pack(fill="x", padx=20, pady=(0, 12))
+        card_values = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
+        for i, (label, var) in enumerate(zip(["訂單數 / Orders", "營業額 / Sales", "小費總額 / Tips"], card_values)):
+            card = ttk.LabelFrame(summary_cards, text=label, padding=12); card.grid(row=0, column=i, sticky="ew", padx=5); ttk.Label(card, textvariable=var, font=("Segoe UI", 18, "bold")).pack(anchor="w"); summary_cards.columnconfigure(i, weight=1)
+        tables = ttk.Frame(win, height=430); tables.pack(fill="both", expand=True, padx=25); tables.pack_propagate(False)
+        item_tree = None; cat_tree = None
+        for column in range(3): tables.columnconfigure(column, weight=1, uniform="stats")
+        tables.rowconfigure(0, weight=1)
+        for column, (kind, first) in enumerate([("category", "種類 / Category"), ("item", "品項 / Item")]):
+            box = ttk.Frame(tables, padding=6); box.grid(row=0, column=column, sticky="nsew", padx=5)
+            tree = ttk.Treeview(box, columns=("category", "qty", "sales") if kind == "category" else ("name", "qty", "sales"), show="headings", height=8)
+            if kind == "category": cat_tree = tree
+            else: item_tree = tree
+            tree.heading(tree["columns"][0], text=first); tree.heading("qty", text="數量 / Qty"); tree.heading("sales", text="銷售額 / Sales"); tree.column(tree["columns"][0], width=150); tree.column("qty", width=65, anchor="center"); tree.column("sales", width=100, anchor="e"); tree.pack(fill="both", expand=True)
+        chart_box = ttk.LabelFrame(tables, text="種類銷售比例 / Category Share", padding=8); chart_box.grid(row=0, column=2, sticky="nsew", padx=5)
+        chart = tk.Canvas(chart_box, width=300, height=390, bg="white", highlightthickness=0); chart.pack()
         def get_rows():
             now = datetime.now(); key = period.get().split(" ")[0]
             if key == "日": start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -318,7 +332,8 @@ class POSApp(tk.Tk):
             return rows
         def refresh():
             rows = get_rows(); sales = sum(o.get("total", 0) for o in rows); tips = sum(o.get("tip", 0) for o in rows)
-            summary.set(f"{self.t('completed')}: {len(rows)}\n{self.t('sales')}: {sales:,.2f} TWD\n{self.t('tip_total')}: {tips:,.2f} TWD")
+            summary.set(f"{self.t('completed')}: {len(rows)} | {self.t('sales')}: {sales:,.2f} TWD | {self.t('tip_total')}: {tips:,.2f} TWD")
+            card_values[0].set(f"{len(rows):,}"); card_values[1].set(f"{sales:,.2f} TWD"); card_values[2].set(f"{tips:,.2f} TWD")
             item_data = {}; category_data = {}
             category_by_name = {}
             for category, raw_name, price, image, barcode in self.menu:
@@ -333,6 +348,21 @@ class POSApp(tk.Tk):
                 for item in tree.get_children(): tree.delete(item)
             for name, (qty, amount) in sorted(item_data.items(), key=lambda x: x[1][1], reverse=True): item_tree.insert("", "end", values=(name, qty, f"{amount:,.2f}"))
             for category, (qty, amount) in sorted(category_data.items(), key=lambda x: x[1][1], reverse=True): cat_tree.insert("", "end", values=(category, qty, f"{amount:,.2f}"))
+            if not item_data: item_tree.insert("", "end", values=("尚無資料 / No data", "-", "-"))
+            if not category_data: cat_tree.insert("", "end", values=("尚無資料 / No data", "-", "-"))
+            chart.delete("all")
+            total_category_sales = sum(value[1] for value in category_data.values())
+            if not total_category_sales:
+                chart.create_text(150, 170, text="尚無資料 / No data", font=("Segoe UI", 13), fill="#777777")
+            else:
+                colors = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316"]
+                angle = 90
+                for index, (category, (qty, amount)) in enumerate(sorted(category_data.items(), key=lambda x: x[1][1], reverse=True)):
+                    extent = amount / total_category_sales * 360
+                    color = colors[index % len(colors)]; chart.create_arc(25, 20, 255, 250, start=angle, extent=-extent, fill=color, outline="white", width=2)
+                    percent = amount / total_category_sales * 100
+                    y = 280 + index * 24; chart.create_rectangle(25, y, 39, y + 14, fill=color, outline=color); chart.create_text(47, y + 7, anchor="w", text=f"{category}: {percent:.1f}% ({amount:,.0f})", font=("Segoe UI", 9))
+                    angle -= extent
         def export():
             rows = get_rows(); path = os.path.join(DATA_DIR, f"sales_report_{datetime.now():%Y%m%d_%H%M%S}.csv"); os.makedirs(DATA_DIR, exist_ok=True)
             with open(path, "w", newline="", encoding="utf-8-sig") as f:

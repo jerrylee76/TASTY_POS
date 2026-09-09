@@ -15,7 +15,7 @@
     0.1,
     0.15
   ],
-  "theme": "#c0c0c0",
+  "theme": "#80ffff",
   "receipt_header": "好味道餐廳\nThank you for dining with us",
   "receipt_width": 38,
   "show_tax": true,
