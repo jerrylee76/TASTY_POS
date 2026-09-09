@@ -21,6 +21,7 @@ DEFAULT_SETTINGS = {
     "history_password": "1234",
     "system_font": "Segoe UI", "system_font_size": 10,
     "menu_font": "Segoe UI", "menu_font_size": 10,
+    "floating_order": False,
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
     "receipt_header": "好味道餐廳\nThank you for dining with us", "receipt_width": 38,
@@ -93,11 +94,13 @@ class POSApp(tk.Tk):
         self.current_category = "全部"
         self.tip_rate = 0
         self.menu_images = []
+        self.floating_order_win = None
         self.title(self.t("title")); self.geometry("1180x720"); self.resizable(False, False); self.protocol("WM_DELETE_WINDOW", self.request_exit)
         try: self.overrideredirect(True); self.attributes("-fullscreen", True)
         except tk.TclError: self.state("zoomed")
         self.configure(bg=self.settings.get("theme", "#f4f6f8"))
         self.make_style(); self.build_ui(); self.bind_shortcuts()
+        if self.settings.get("floating_order", False): self.after(300, self.open_floating_order)
         self.after(250, self.show_guide)
 
     def t(self, key): return TEXT[self.lang].get(key, key)
@@ -229,6 +232,23 @@ class POSApp(tk.Tk):
         for x in self.tree.get_children(): self.tree.delete(x)
         for name, x in self.cart.items(): self.tree.insert("", "end", iid=name, values=(name, x["qty"], f"{x['price']:,}", f"{x['price']*x['qty']:,}"))
         self.update_totals()
+        self.refresh_floating_order()
+    def open_floating_order(self):
+        if self.floating_order_win and self.floating_order_win.winfo_exists(): return
+        win = self.floating_order_win = tk.Toplevel(self); win.title("目前訂單 / Current Order"); win.geometry("380x520"); win.resizable(False, False); win.protocol("WM_DELETE_WINDOW", self.close_floating_order)
+        ttk.Label(win, text="目前訂單 / Current Order", style="Header.TLabel").pack(anchor="w", padx=14, pady=12)
+        self.floating_order_list = tk.Listbox(win, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10))))
+        self.floating_order_list.pack(fill="both", expand=True, padx=14, pady=5)
+        self.floating_order_total = tk.StringVar(); ttk.Label(win, textvariable=self.floating_order_total, font=(self.settings.get("system_font", "Segoe UI"), 16, "bold")).pack(anchor="e", padx=14, pady=12)
+        self.refresh_floating_order()
+    def close_floating_order(self):
+        if self.floating_order_win and self.floating_order_win.winfo_exists(): self.floating_order_win.destroy()
+        self.floating_order_win = None; self.settings["floating_order"] = False; save_json(SETTINGS_FILE, self.settings)
+    def refresh_floating_order(self):
+        if not self.floating_order_win or not self.floating_order_win.winfo_exists(): return
+        self.floating_order_list.delete(0, "end")
+        for name, item in self.cart.items(): self.floating_order_list.insert("end", f"{name}  x{item['qty']}  ${item['price']*item['qty']:,.2f}")
+        self.floating_order_total.set(f"{self.t('total')}: {self.amounts()[3]:,.2f} TWD")
     def change_selected(self, delta):
         sel = self.tree.selection()
         if not sel: return
@@ -255,9 +275,11 @@ class POSApp(tk.Tk):
         messagebox.showinfo(self.t("guide"), "點選餐點加入訂單，選擇小費與幣別後按 F9 結帳。\n\n快捷鍵：F2 設定、F4 清空、F9 結帳、Ctrl+P 收據、Ctrl+L 語言切換。\n可在設定中調整稅率、收據格式與介面顏色。" if self.lang == "zh" else "Click items to add. Choose tip/currency, then press F9 to checkout.\n\nShortcuts: F2 settings, F4 clear, F9 checkout, Ctrl+P receipt, Ctrl+L language.\nAdjust tax, receipt format and UI color in Settings.")
 
     def show_settings(self):
-        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("760x760"); win.resizable(False, False)
+        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("800x820"); win.minsize(760, 700); win.resizable(True, True)
+        try: win.state("zoomed")
+        except tk.TclError: pass
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
-        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); system_font = tk.StringVar(value=self.settings.get("system_font", "Segoe UI")); system_font_size = tk.StringVar(value=str(self.settings.get("system_font_size", 10))); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); floating_order = tk.BooleanVar(value=self.settings.get("floating_order", False)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); system_font = tk.StringVar(value=self.settings.get("system_font", "Segoe UI")); system_font_size = tk.StringVar(value=str(self.settings.get("system_font_size", 10))); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
         tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
         ttk.Label(tax_box, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w"); ttk.Entry(tax_box, textvariable=tax, width=14).grid(row=0, column=1, sticky="w", padx=12)
         receipt_box = ttk.LabelFrame(f, text="收據版面 / Receipt Layout", padding=12); receipt_box.pack(fill="x", pady=(0, 12))
@@ -273,6 +295,7 @@ class POSApp(tk.Tk):
         ttk.Label(theme_box, text="色碼 / Color").pack(side="left"); ttk.Entry(theme_box, textvariable=theme, width=14).pack(side="left", padx=12); ttk.Button(theme_box, text="選擇顏色 / Pick", command=lambda: self.pick_color(theme)).pack(side="left")
         security_box = ttk.LabelFrame(f, text="安全性 / Security", padding=12); security_box.pack(fill="x", pady=(0, 12))
         ttk.Label(security_box, text="歷史訂單刪除密碼 / Delete password", width=38).grid(row=0, column=0, sticky="w"); ttk.Entry(security_box, textvariable=password, show="*", width=20).grid(row=0, column=1, sticky="w", padx=12)
+        ttk.Checkbutton(security_box, text="啟用浮動訂單視窗 / Floating order window", variable=floating_order).grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
         font_list = sorted(set(tkfont.families(self)))
         system_box = ttk.LabelFrame(f, text="系統字型 / System Font（菜單以外）", padding=12); system_box.pack(fill="x", pady=(0, 12))
         ttk.Label(system_box, text="字型 / Font", width=14).grid(row=0, column=0, sticky="w"); ttk.Combobox(system_box, textvariable=system_font, values=font_list, width=24).grid(row=0, column=1, sticky="w", padx=8); ttk.Label(system_box, text="大小 / Size", width=12).grid(row=0, column=2, sticky="w", padx=(20, 0)); ttk.Entry(system_box, textvariable=system_font_size, width=8).grid(row=0, column=3, sticky="w", padx=8)
@@ -289,9 +312,12 @@ class POSApp(tk.Tk):
                 self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
                 if not password.get(): raise ValueError("password")
                 self.settings["history_password"] = password.get()
+                self.settings["floating_order"] = floating_order.get()
                 self.settings["system_font"] = system_font.get().strip() or "Segoe UI"; self.settings["system_font_size"] = max(8, min(32, int(system_font_size.get())))
                 self.settings["menu_font"] = menu_font.get().strip() or "Segoe UI"; self.settings["menu_font_size"] = max(8, min(32, int(menu_font_size.get())))
                 save_json(SETTINGS_FILE, self.settings); self.apply_theme(); win.destroy(); self.build_ui()
+                if self.settings["floating_order"]: self.open_floating_order()
+                elif self.floating_order_win and self.floating_order_win.winfo_exists(): self.floating_order_win.destroy(); self.floating_order_win = None
             except (ValueError, tk.TclError): messagebox.showerror("Error", "請輸入有效數字或有效色碼，例如 #f4f6f8")
         action = ttk.Frame(f); action.pack(fill="x", pady=(4, 0)); ttk.Button(action, text="取消 / Cancel", command=win.destroy).pack(side="right"); ttk.Button(action, text=self.t("save"), command=save).pack(side="right", padx=8)
     def pick_color(self, variable):

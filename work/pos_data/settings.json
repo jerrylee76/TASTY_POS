@@ -4,9 +4,10 @@
   "currency": "TWD",
   "history_password": "1234",
   "system_font": "Segoe UI",
-  "system_font_size": 14,
+  "system_font_size": 12,
   "menu_font": "Microsoft YaHei",
   "menu_font_size": 14,
+  "floating_order": false,
   "rates": {
     "TWD": 1.0,
     "USD": 0.031,
