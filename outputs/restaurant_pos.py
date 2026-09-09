@@ -15,6 +15,7 @@ MENU_FILE = os.path.join(APP_DIR, "menu.json")
 
 DEFAULT_SETTINGS = {
     "language": "zh", "tax_rate": 0.05, "currency": "TWD",
+    "history_password": "1234",
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
     "receipt_header": "好味道餐廳\nThank you for dining with us", "receipt_width": 38,
@@ -216,7 +217,7 @@ class POSApp(tk.Tk):
     def show_settings(self):
         win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("620x650"); win.resizable(False, False)
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
-        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8"))
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234"))
         tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
         ttk.Label(tax_box, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w"); ttk.Entry(tax_box, textvariable=tax, width=14).grid(row=0, column=1, sticky="w", padx=12)
         receipt_box = ttk.LabelFrame(f, text="收據版面 / Receipt Layout", padding=12); receipt_box.pack(fill="x", pady=(0, 12))
@@ -230,6 +231,8 @@ class POSApp(tk.Tk):
             rates[cur] = tk.StringVar(value=str(self.settings["rates"][cur])); ttk.Label(rate_frame, text=cur, width=8).grid(row=0, column=i, padx=4); ttk.Entry(rate_frame, textvariable=rates[cur], width=12).grid(row=1, column=i, padx=4)
         theme_box = ttk.LabelFrame(f, text="介面主題 / Theme", padding=12); theme_box.pack(fill="x", pady=(0, 12))
         ttk.Label(theme_box, text="色碼 / Color").pack(side="left"); ttk.Entry(theme_box, textvariable=theme, width=14).pack(side="left", padx=12); ttk.Button(theme_box, text="選擇顏色 / Pick", command=lambda: self.pick_color(theme)).pack(side="left")
+        security_box = ttk.LabelFrame(f, text="安全性 / Security", padding=12); security_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(security_box, text="歷史訂單刪除密碼 / Delete password").pack(side="left"); ttk.Entry(security_box, textvariable=password, show="*", width=16).pack(side="left", padx=12)
         def save():
             try:
                 self.settings["tax_rate"] = float(tax.get()) / 100
@@ -238,6 +241,8 @@ class POSApp(tk.Tk):
                 self.settings["theme"] = theme.get().strip() or "#f4f6f8"
                 self.settings["receipt_width"] = max(20, min(80, int(width.get())))
                 self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
+                if not password.get(): raise ValueError("password")
+                self.settings["history_password"] = password.get()
                 save_json(SETTINGS_FILE, self.settings); win.destroy(); self.build_ui()
             except ValueError: messagebox.showerror("Error", "請輸入有效數字")
         action = ttk.Frame(f); action.pack(fill="x", pady=(4, 0)); ttk.Button(action, text="取消 / Cancel", command=win.destroy).pack(side="right"); ttk.Button(action, text=self.t("save"), command=save).pack(side="right", padx=8)
@@ -325,6 +330,14 @@ class POSApp(tk.Tk):
             order = self.orders[int(selection[0])]; lines = [f"{self.t('name')}: {x['qty']} x {name} = {x['price']*x['qty']:,.2f}" for name, x in order.get("items", {}).items()]
             messagebox.showinfo(f"Order {order_no(order, int(selection[0]))}", "\n".join(lines) + f"\n\n{self.t('total')}: {order.get('total', 0):,.2f} TWD", parent=win)
         search.trace_add("write", refresh); tree.bind("<Double-1>", detail); ttk.Button(bar, text="查詢 / Search", command=refresh).pack(side="left")
+        def delete_selected():
+            selection = tree.selection()
+            if not selection: return messagebox.showwarning("", "請先選擇訂單 / Select an order", parent=win)
+            typed = simpledialog.askstring("Password", "請輸入刪除密碼 / Delete password", show="*", parent=win)
+            if typed != self.settings.get("history_password", "1234"): return messagebox.showerror("", "密碼錯誤 / Incorrect password", parent=win)
+            if not messagebox.askyesno("Confirm", "確定刪除這筆歷史訂單？\nDelete this historical order?", parent=win): return
+            self.orders.pop(int(selection[0])); save_json(ORDERS_FILE, self.orders); refresh()
+        ttk.Button(bar, text="刪除 / Delete", command=delete_selected).pack(side="right", padx=6)
         ttk.Button(bar, text="關閉 / Close", command=win.destroy).pack(side="right"); refresh(); entry.focus_set()
 
     def show_calculator(self):
