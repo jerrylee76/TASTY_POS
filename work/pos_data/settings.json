@@ -2,6 +2,7 @@
   "language": "zh",
   "tax_rate": 0.05,
   "currency": "TWD",
+  "history_password": "1234",
   "rates": {
     "TWD": 1.0,
     "USD": 0.031,
@@ -14,7 +15,7 @@
     0.1,
     0.15
   ],
-  "theme": "#f4f6f8",
+  "theme": "#c0c0c0",
   "receipt_header": "好味道餐廳\nThank you for dining with us",
   "receipt_width": 38,
   "show_tax": true,

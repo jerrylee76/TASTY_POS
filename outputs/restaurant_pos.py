@@ -104,11 +104,20 @@ class POSApp(tk.Tk):
         self.destroy()
     def make_style(self):
         s = ttk.Style(self); s.theme_use("clam")
-        s.configure("TFrame", background=self.settings.get("theme", "#f4f6f8"))
-        s.configure("TLabel", background=self.settings.get("theme", "#f4f6f8"), font=("Segoe UI", 10))
+        self.apply_theme(s)
         s.configure("Header.TLabel", font=("Segoe UI", 18, "bold"))
         s.configure("Card.TFrame", background="white", relief="groove", borderwidth=1)
         s.configure("TButton", padding=7, font=("Segoe UI", 10))
+
+    def apply_theme(self, style=None):
+        color = self.settings.get("theme", "#f4f6f8")
+        self.configure(bg=color)
+        style = style or ttk.Style(self)
+        style.configure("TFrame", background=color)
+        style.configure("TLabel", background=color, font=("Segoe UI", 10))
+        style.configure("TLabelframe", background=color)
+        style.configure("TLabelframe.Label", background=color)
+        style.configure("TCheckbutton", background=color)
 
     def build_ui(self):
         for w in self.winfo_children(): w.destroy()
@@ -247,12 +256,13 @@ class POSApp(tk.Tk):
                 self.settings["receipt_header"] = header.get("1.0", "end").strip()
                 self.settings["rates"] = {cur: float(v.get()) for cur, v in rates.items()}
                 self.settings["theme"] = theme.get().strip() or "#f4f6f8"
+                self.winfo_rgb(self.settings["theme"])
                 self.settings["receipt_width"] = max(20, min(80, int(width.get())))
                 self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
                 if not password.get(): raise ValueError("password")
                 self.settings["history_password"] = password.get()
-                save_json(SETTINGS_FILE, self.settings); win.destroy(); self.build_ui()
-            except ValueError: messagebox.showerror("Error", "請輸入有效數字")
+                save_json(SETTINGS_FILE, self.settings); self.apply_theme(); win.destroy(); self.build_ui()
+            except (ValueError, tk.TclError): messagebox.showerror("Error", "請輸入有效數字或有效色碼，例如 #f4f6f8")
         action = ttk.Frame(f); action.pack(fill="x", pady=(4, 0)); ttk.Button(action, text="取消 / Cancel", command=win.destroy).pack(side="right"); ttk.Button(action, text=self.t("save"), command=save).pack(side="right", padx=8)
     def pick_color(self, variable):
         chosen = colorchooser.askcolor(color=variable.get(), parent=self)[1]
