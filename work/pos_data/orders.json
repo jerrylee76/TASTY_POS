@@ -1,0 +1,30 @@
+[
+  {
+    "time": "2026-09-09T07:39:05",
+    "subtotal": 520,
+    "tax": 26.0,
+    "tip": 0.0,
+    "total": 546.0,
+    "currency": "TWD",
+    "rate": 1.0,
+    "payment": "cash",
+    "items": {
+      "Rice Bowl": {
+        "price": 120,
+        "qty": 1
+      },
+      "Beef Noodles": {
+        "price": 160,
+        "qty": 1
+      },
+      "Vegetable Pasta": {
+        "price": 150,
+        "qty": 1
+      },
+      "Salad": {
+        "price": 90,
+        "qty": 1
+      }
+    }
+  }
+]

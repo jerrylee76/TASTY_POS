@@ -1,0 +1,321 @@
+import json
+import os
+import csv
+import textwrap
+import tkinter as tk
+from datetime import datetime, timedelta
+from tkinter import ttk, messagebox, simpledialog, colorchooser
+
+
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(os.path.dirname(APP_DIR), "work", "pos_data")
+SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
+MENU_FILE = os.path.join(APP_DIR, "menu.json")
+
+DEFAULT_SETTINGS = {
+    "language": "zh", "tax_rate": 0.05, "currency": "TWD",
+    "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
+    "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
+    "receipt_header": "好味道餐廳\nThank you for dining with us", "receipt_width": 38,
+    "show_tax": True, "show_tip": True,
+}
+
+TEXT = {
+    "zh": {"title": "好味道｜點餐收銀系統", "menu": "菜單", "cart": "目前訂單", "qty": "數量", "price": "單價", "subtotal": "小計", "tax": "稅額", "tip": "小費", "total": "應付合計", "pay": "結帳 (F9)", "clear": "清空 (F4)", "settings": "系統設定 (F2)", "stats": "業績統計", "print": "列印收據 (Ctrl+P)", "split": "AA制分單", "currency": "幣別", "cash": "收款", "change": "找零", "add": "加入", "tip_rate": "小費比例", "guide": "操作提示", "completed": "已完成訂單", "sales": "營業額", "tip_total": "小費總額", "close": "關閉", "save": "儲存", "category": "分類", "all": "全部", "empty": "尚未加入餐點", "success": "交易完成", "name": "餐點名稱"},
+    "en": {"title": "Good Taste | Restaurant POS", "menu": "Menu", "cart": "Current order", "qty": "Qty", "price": "Unit price", "subtotal": "Subtotal", "tax": "Tax", "tip": "Tip", "total": "Total", "pay": "Checkout (F9)", "clear": "Clear (F4)", "settings": "Settings (F2)", "stats": "Sales stats", "print": "Print receipt (Ctrl+P)", "split": "Split AA", "currency": "Currency", "cash": "Cash received", "change": "Change", "add": "Add", "tip_rate": "Tip rate", "guide": "Quick guide", "completed": "Completed orders", "sales": "Sales", "tip_total": "Tips", "close": "Close", "save": "Save", "category": "Category", "all": "All", "empty": "No items yet", "success": "Payment complete", "name": "Item name"},
+}
+
+MENU = [
+    ("主食", "Rice Bowl", 120, "", ""), ("主食", "Beef Noodles", 160, "", ""), ("主食", "Vegetable Pasta", 150, "", ""),
+    ("小食", "French Fries", 70, "", ""), ("小食", "Fried Chicken", 110, "", ""), ("小食", "Salad", 90, "", ""),
+    ("飲品", "Cola", 35, "", ""), ("飲品", "Coffee", 80, "", ""), ("飲品", "Fresh Juice", 100, "", ""),
+    ("甜點", "Cheesecake", 120, "", ""), ("甜點", "Ice Cream", 85, "", ""),
+]
+
+
+def load_json(path, default):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return default
+
+
+def save_json(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def load_menu():
+    """Load menu items from menu.json; fall back to the sample menu if needed."""
+    raw = load_json(MENU_FILE, None)
+    if not isinstance(raw, list):
+        return MENU.copy()
+    result = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            category = item["category"]
+            name = item["name"]
+            price = float(item["price"])
+            image = str(item.get("image", "")).strip()
+            if category and name and price >= 0:
+                result.append((category, name, price, image, str(item.get("barcode", "")).strip()))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return result or MENU.copy()
+
+
+def localized(value, language):
+    if isinstance(value, dict):
+        return str(value.get(language) or value.get("zh") or value.get("en") or "")
+    return str(value)
+
+
+class POSApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.settings = {**DEFAULT_SETTINGS, **load_json(SETTINGS_FILE, {})}
+        self.settings["rates"] = {**DEFAULT_SETTINGS["rates"], **self.settings.get("rates", {})}
+        self.orders = load_json(ORDERS_FILE, [])
+        self.menu = load_menu()
+        self.cart = {}
+        self.lang = self.settings.get("language", "zh")
+        self.current_category = "全部"
+        self.tip_rate = 0
+        self.menu_images = []
+        self.title(self.t("title")); self.geometry("1180x720"); self.minsize(980, 620)
+        self.configure(bg=self.settings.get("theme", "#f4f6f8"))
+        self.make_style(); self.build_ui(); self.bind_shortcuts()
+        self.after(250, self.show_guide)
+
+    def t(self, key): return TEXT[self.lang].get(key, key)
+    def make_style(self):
+        s = ttk.Style(self); s.theme_use("clam")
+        s.configure("TFrame", background=self.settings.get("theme", "#f4f6f8"))
+        s.configure("TLabel", background=self.settings.get("theme", "#f4f6f8"), font=("Segoe UI", 10))
+        s.configure("Header.TLabel", font=("Segoe UI", 18, "bold"))
+        s.configure("Card.TFrame", background="white", relief="groove", borderwidth=1)
+        s.configure("TButton", padding=7, font=("Segoe UI", 10))
+
+    def build_ui(self):
+        for w in self.winfo_children(): w.destroy()
+        top = ttk.Frame(self); top.pack(fill="x", padx=16, pady=(14, 8))
+        ttk.Label(top, text=self.t("title"), style="Header.TLabel").pack(side="left")
+        ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
+        ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
+        ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
+        ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
+        main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
+        left = ttk.Frame(main, style="Card.TFrame", padding=12); left.pack(side="left", fill="both", expand=True, padx=(0, 8))
+        right = ttk.Frame(main, style="Card.TFrame", padding=12); right.pack(side="right", fill="both", expand=True)
+        ttk.Label(left, text=self.t("menu"), style="Header.TLabel").pack(anchor="w")
+        scan = ttk.Frame(left); scan.pack(fill="x", pady=(6, 2))
+        ttk.Label(scan, text="條碼 / Barcode").pack(side="left")
+        self.barcode_var = tk.StringVar()
+        self.barcode_entry = ttk.Entry(scan, textvariable=self.barcode_var, width=18)
+        self.barcode_entry.pack(side="left", padx=6)
+        self.barcode_entry.bind("<Return>", self.add_by_barcode)
+        ttk.Button(scan, text="加入", command=self.add_by_barcode).pack(side="left")
+        cats = ["全部"] + sorted(set(localized(x[0], self.lang) for x in self.menu))
+        self.cat_var = tk.StringVar(value=self.current_category)
+        ttk.Combobox(left, textvariable=self.cat_var, values=cats, state="readonly", width=15).pack(anchor="w", pady=8)
+        self.cat_var.trace_add("write", lambda *_: self.render_menu())
+        self.menu_frame = ttk.Frame(left); self.menu_frame.pack(fill="both", expand=True)
+        self.render_menu()
+        ttk.Label(right, text=self.t("cart"), style="Header.TLabel").pack(anchor="w")
+        columns = ("name", "qty", "price", "sum")
+        self.tree = ttk.Treeview(right, columns=columns, show="headings", height=13)
+        heads = [self.t("name"), self.t("qty"), self.t("price"), self.t("subtotal")]
+        for c, h in zip(columns, heads): self.tree.heading(c, text=h); self.tree.column(c, width=105, anchor="center")
+        self.tree.pack(fill="both", expand=True, pady=8)
+        btns = ttk.Frame(right); btns.pack(fill="x")
+        ttk.Button(btns, text="＋", width=4, command=lambda: self.change_selected(1)).pack(side="left")
+        ttk.Button(btns, text="－", width=4, command=lambda: self.change_selected(-1)).pack(side="left", padx=4)
+        ttk.Button(btns, text=self.t("clear"), command=self.clear_cart).pack(side="right")
+        pay = ttk.Frame(right); pay.pack(fill="x", pady=(10, 0))
+        self.currency_var = tk.StringVar(value=self.settings.get("currency", "TWD"))
+        ttk.Label(pay, text=self.t("currency")).grid(row=0, column=0, sticky="w")
+        ttk.Combobox(pay, textvariable=self.currency_var, values=list(self.settings["rates"].keys()), state="readonly", width=8).grid(row=0, column=1, padx=5)
+        self.tip_var = tk.StringVar(value="0%")
+        ttk.Label(pay, text=self.t("tip_rate")).grid(row=0, column=2, sticky="e")
+        ttk.Combobox(pay, textvariable=self.tip_var, values=[f"{int(x*100)}%" for x in self.settings.get("tip_options", [0, .05, .1, .15])], state="readonly", width=7).grid(row=0, column=3, padx=5)
+        self.tip_var.trace_add("write", lambda *_: self.update_totals())
+        self.total_var = tk.StringVar(); self.detail_var = tk.StringVar()
+        ttk.Label(right, textvariable=self.detail_var, justify="right").pack(anchor="e", pady=(10, 0))
+        ttk.Label(right, textvariable=self.total_var, font=("Segoe UI", 18, "bold")).pack(anchor="e")
+        ttk.Button(right, text=self.t("split"), command=self.split_bill).pack(side="left", pady=10)
+        ttk.Button(right, text=self.t("print"), command=self.print_receipt).pack(side="left", padx=6, pady=10)
+        ttk.Button(right, text=self.t("pay"), command=self.checkout).pack(side="right", pady=10)
+        self.update_totals()
+
+    def render_menu(self):
+        for w in self.menu_frame.winfo_children(): w.destroy()
+        cat = self.cat_var.get() if hasattr(self, "cat_var") else "全部"
+        items = [x for x in self.menu if cat == "全部" or localized(x[0], self.lang) == cat]
+        self.menu_images = []
+        for i, (group, raw_name, price, image_path, barcode) in enumerate(items):
+            name = localized(raw_name, self.lang)
+            image = None
+            if image_path:
+                full_path = image_path if os.path.isabs(image_path) else os.path.join(APP_DIR, image_path)
+                try:
+                    image = tk.PhotoImage(file=full_path)
+                    image = image.subsample(max(1, image.width() // 100), max(1, image.height() // 70))
+                    self.menu_images.append(image)
+                except tk.TclError:
+                    image = None
+            b = ttk.Button(self.menu_frame, text=f"{name}\n${price:,.0f}", image=image, compound="top", command=lambda n=name, p=price: self.add_item(n, p))
+            b.grid(row=i//3, column=i%3, sticky="nsew", padx=5, pady=5, ipadx=10, ipady=12)
+        for col in range(3): self.menu_frame.columnconfigure(col, weight=1)
+
+    def add_item(self, name, price):
+        self.cart[name] = self.cart.get(name, {"price": price, "qty": 0}); self.cart[name]["qty"] += 1; self.refresh_cart()
+    def add_by_barcode(self, event=None):
+        code = self.barcode_var.get().strip()
+        for category, raw_name, price, image_path, barcode in self.menu:
+            if barcode and barcode == code:
+                self.add_item(localized(raw_name, self.lang), price)
+                self.barcode_var.set(""); self.barcode_entry.focus_set(); return
+        if code: messagebox.showwarning("Barcode", f"找不到條碼 / Barcode not found: {code}")
+        self.barcode_var.set(""); self.barcode_entry.focus_set()
+    def refresh_cart(self):
+        for x in self.tree.get_children(): self.tree.delete(x)
+        for name, x in self.cart.items(): self.tree.insert("", "end", iid=name, values=(name, x["qty"], f"{x['price']:,}", f"{x['price']*x['qty']:,}"))
+        self.update_totals()
+    def change_selected(self, delta):
+        sel = self.tree.selection()
+        if not sel: return
+        name = sel[0]; self.cart[name]["qty"] += delta
+        if self.cart[name]["qty"] <= 0: del self.cart[name]
+        self.refresh_cart()
+    def clear_cart(self): self.cart.clear(); self.refresh_cart()
+    def amounts(self):
+        sub = sum(x["price"]*x["qty"] for x in self.cart.values())
+        tax = sub * float(self.settings.get("tax_rate", 0))
+        tip = (sub + tax) * (int(self.tip_var.get().strip("%") or 0) / 100) if hasattr(self, "tip_var") else 0
+        return sub, tax, tip, sub + tax + tip
+    def update_totals(self):
+        if not hasattr(self, "total_var"): return
+        sub, tax, tip, total = self.amounts(); cur = self.currency_var.get() if hasattr(self, "currency_var") else "TWD"; rate = self.settings["rates"].get(cur, 1)
+        self.detail_var.set(f"{self.t('subtotal')}: {sub:,.2f}  |  {self.t('tax')}: {tax:,.2f}  |  {self.t('tip')}: {tip:,.2f}")
+        self.total_var.set(f"{self.t('total')}: {total*rate:,.2f} {cur}")
+    def bind_shortcuts(self):
+        self.bind("<F2>", lambda e: self.show_settings()); self.bind("<F4>", lambda e: self.clear_cart()); self.bind("<F9>", lambda e: self.checkout()); self.bind("<Control-p>", lambda e: self.print_receipt())
+        self.bind("<Control-l>", lambda e: self.toggle_language())
+
+    def toggle_language(self): self.lang = "en" if self.lang == "zh" else "zh"; self.settings["language"] = self.lang; save_json(SETTINGS_FILE, self.settings); self.build_ui()
+    def show_guide(self):
+        messagebox.showinfo(self.t("guide"), "點選餐點加入訂單，選擇小費與幣別後按 F9 結帳。\n\n快捷鍵：F2 設定、F4 清空、F9 結帳、Ctrl+P 收據、Ctrl+L 語言切換。\n可在設定中調整稅率、收據格式與介面顏色。" if self.lang == "zh" else "Click items to add. Choose tip/currency, then press F9 to checkout.\n\nShortcuts: F2 settings, F4 clear, F9 checkout, Ctrl+P receipt, Ctrl+L language.\nAdjust tax, receipt format and UI color in Settings.")
+
+    def show_settings(self):
+        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("480x400")
+        f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); header = tk.Text(f, height=4, width=42); header.insert("1.0", self.settings.get("receipt_header", ""))
+        ttk.Label(f, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w", pady=8); ttk.Entry(f, textvariable=tax, width=12).grid(row=0, column=1, sticky="w")
+        ttk.Label(f, text="Receipt header / 收據抬頭").grid(row=1, column=0, sticky="nw", pady=8); header.grid(row=1, column=1, sticky="w")
+        ttk.Label(f, text="TWD / USD / HKD / JPY rates").grid(row=2, column=0, sticky="w", pady=8)
+        rates = {}; rate_frame = ttk.Frame(f); rate_frame.grid(row=2, column=1, sticky="w")
+        for i, cur in enumerate(self.settings["rates"]):
+            rates[cur] = tk.StringVar(value=str(self.settings["rates"][cur])); ttk.Label(rate_frame, text=cur).grid(row=i, column=0); ttk.Entry(rate_frame, textvariable=rates[cur], width=10).grid(row=i, column=1)
+        ttk.Label(f, text="介面主題色 / Theme").grid(row=3, column=0, sticky="w", pady=8)
+        ttk.Entry(f, textvariable=theme, width=12).grid(row=3, column=1, sticky="w")
+        ttk.Button(f, text="選擇顏色", command=lambda: self.pick_color(theme)).grid(row=3, column=1, padx=(105, 0), sticky="w")
+        def save():
+            try:
+                self.settings["tax_rate"] = float(tax.get()) / 100
+                self.settings["receipt_header"] = header.get("1.0", "end").strip()
+                self.settings["rates"] = {cur: float(v.get()) for cur, v in rates.items()}
+                self.settings["theme"] = theme.get().strip() or "#f4f6f8"
+                save_json(SETTINGS_FILE, self.settings); win.destroy(); self.build_ui()
+            except ValueError: messagebox.showerror("Error", "請輸入有效數字")
+        ttk.Button(f, text=self.t("save"), command=save).grid(row=4, column=1, sticky="e", pady=18)
+    def pick_color(self, variable):
+        chosen = colorchooser.askcolor(color=variable.get(), parent=self)[1]
+        if chosen: variable.set(chosen)
+    def split_bill(self):
+        if not self.cart: return messagebox.showwarning("", self.t("empty"))
+        n = simpledialog.askinteger(self.t("split"), "請輸入用餐人數 / Number of people", minvalue=2, maxvalue=30, parent=self)
+        if n: messagebox.showinfo(self.t("split"), f"每位應付 / Per person: {self.amounts()[3]/n:,.2f} {self.currency_var.get()}\n（最後一位負責四捨五入差額）")
+    def checkout(self):
+        if not self.cart: return messagebox.showwarning("", self.t("empty"))
+        sub, tax, tip, total = self.amounts(); cur = self.currency_var.get(); rate = self.settings["rates"].get(cur, 1); due = total * rate
+        cash = simpledialog.askfloat(self.t("pay"), f"{self.t('cash')} ({cur})\n{self.t('total')}: {due:,.2f}", minvalue=0, parent=self)
+        if cash is None: return
+        if cash < due: return messagebox.showerror("", f"不足 / Insufficient: {due-cash:,.2f} {cur}")
+        order = {"time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
+        self.orders.append(order); save_json(ORDERS_FILE, self.orders); self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
+    def receipt_text(self, order=None, cash=None):
+        o = order or {"subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
+        cur = o["currency"]; lines = [self.settings.get("receipt_header", ""), "-"*int(self.settings.get("receipt_width", 38))]
+        for name, x in o["items"].items(): lines.append(f"{name[:20]:20} x{x['qty']:<2} {x['price']*x['qty']:>8.2f}")
+        lines += ["-"*38, f"{self.t('subtotal')}: {o['subtotal']:,.2f} TWD", f"{self.t('tax')}: {o['tax']:,.2f} TWD", f"{self.t('tip')}: {o['tip']:,.2f} TWD", f"{self.t('total')}: {o['total']*o['rate']:,.2f} {cur}"]
+        if cash is not None: lines.append(f"{self.t('change')}: {cash-o['total']*o['rate']:,.2f} {cur}")
+        return "\n".join(lines) + "\n" + datetime.now().strftime("%Y-%m-%d %H:%M")
+    def print_receipt(self, order=None, cash=None):
+        if order is None and not self.cart: return messagebox.showwarning("", self.t("empty"))
+        path = os.path.join(DATA_DIR, "receipt_latest.txt"); os.makedirs(DATA_DIR, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f: f.write(self.receipt_text(order, cash))
+        messagebox.showinfo(self.t("print"), f"收據已儲存 / Receipt saved:\n{path}")
+    def show_stats(self):
+        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("600x430")
+        period = tk.StringVar(value="日 / Day")
+        ttk.Label(win, text="報表範圍 / Period").pack(anchor="w", padx=25, pady=(20, 5))
+        ttk.Combobox(win, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "年 / Year"], state="readonly", width=18).pack(anchor="w", padx=25)
+        summary = tk.StringVar(); ttk.Label(win, textvariable=summary, font=("Segoe UI", 14), justify="left").pack(anchor="w", padx=25, pady=25)
+        def get_rows():
+            now = datetime.now(); key = period.get().split(" ")[0]
+            if key == "日": start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif key == "週": start = now - timedelta(days=now.weekday(), hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+            elif key == "月": start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            else: start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            rows = []
+            for order in self.orders:
+                try:
+                    if datetime.fromisoformat(order["time"]) >= start: rows.append(order)
+                except (KeyError, ValueError): pass
+            return rows
+        def refresh():
+            rows = get_rows(); sales = sum(o.get("total", 0) for o in rows); tips = sum(o.get("tip", 0) for o in rows)
+            summary.set(f"{self.t('completed')}: {len(rows)}\n{self.t('sales')}: {sales:,.2f} TWD\n{self.t('tip_total')}: {tips:,.2f} TWD")
+        def export():
+            rows = get_rows(); path = os.path.join(DATA_DIR, f"sales_report_{datetime.now():%Y%m%d_%H%M%S}.csv"); os.makedirs(DATA_DIR, exist_ok=True)
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f); writer.writerow(["time", "subtotal_TWD", "tax_TWD", "tip_TWD", "total_TWD", "currency", "payment"])
+                for o in rows: writer.writerow([o.get("time", ""), o.get("subtotal", 0), o.get("tax", 0), o.get("tip", 0), o.get("total", 0), o.get("currency", "TWD"), o.get("payment", "cash")])
+            messagebox.showinfo(self.t("stats"), f"報表已匯出 / Report exported:\n{path}")
+        period.trace_add("write", lambda *_: refresh()); refresh()
+        buttons = ttk.Frame(win); buttons.pack(fill="x", padx=25)
+        ttk.Button(buttons, text="匯出 CSV / Export CSV", command=export).pack(side="left")
+        ttk.Button(buttons, text=self.t("close"), command=win.destroy).pack(side="right")
+
+    def show_calculator(self):
+        win = tk.Toplevel(self); win.title("計算機 / Calculator"); win.geometry("300x390"); win.resizable(False, False)
+        value = tk.StringVar(value="")
+        display = ttk.Entry(win, textvariable=value, justify="right", font=("Segoe UI", 20)); display.pack(fill="x", padx=12, pady=12, ipady=8)
+        grid = ttk.Frame(win); grid.pack(fill="both", expand=True, padx=12, pady=4)
+        keys = [["C", "⌫", "%", "÷"], ["7", "8", "9", "×"], ["4", "5", "6", "−"], ["1", "2", "3", "+"], ["0", ".", "(", ")"], ["＝", ""]]
+        expression = {"÷": "/", "×": "*", "−": "-", "%": "/100"}
+        def press(key):
+            current = value.get()
+            if key == "C": value.set("")
+            elif key == "⌫": value.set(current[:-1])
+            elif key == "＝":
+                try:
+                    if current and set(current) <= set("0123456789.+-*/() "):
+                        value.set(str(round(eval(current, {"__builtins__": {}}, {}), 10)))
+                except (SyntaxError, ZeroDivisionError, ValueError): value.set("Error")
+            else: value.set(current + expression.get(key, key))
+        for r, row in enumerate(keys):
+            for c, key in enumerate(row):
+                if key: ttk.Button(grid, text=key, command=lambda k=key: press(k)).grid(row=r, column=c, sticky="nsew", padx=2, pady=2, ipadx=6, ipady=8)
+        for i in range(4): grid.columnconfigure(i, weight=1)
+        for i in range(len(keys)): grid.rowconfigure(i, weight=1)
+        display.focus_set()
+
+
+if __name__ == "__main__":
+    POSApp().mainloop()

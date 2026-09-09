@@ -1,0 +1,22 @@
+{
+  "language": "zh",
+  "tax_rate": 0.05,
+  "currency": "TWD",
+  "rates": {
+    "TWD": 1.0,
+    "USD": 0.031,
+    "HKD": 0.242,
+    "JPY": 4.62
+  },
+  "tip_options": [
+    0,
+    0.05,
+    0.1,
+    0.15
+  ],
+  "theme": "#f4f6f8",
+  "receipt_header": "好味道餐廳\nThank you for dining with us",
+  "receipt_width": 38,
+  "show_tax": true,
+  "show_tip": true
+}

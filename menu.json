@@ -1,0 +1,13 @@
+[
+  {"category": {"zh": "主食", "en": "Main"}, "name": {"zh": "排骨飯", "en": "Ribs Rice"}, "price": 120, "image": "images/ribs_rice.png"},
+  {"category": {"zh": "主食", "en": "Main"}, "name": {"zh": "牛肉麵", "en": "Beef Noodles"}, "price": 160, "image": "images/beef_noodles.png"},
+  {"category": {"zh": "主食", "en": "Main"}, "name": {"zh": "蔬菜意粉", "en": "Vegetable Pasta"}, "price": 150},
+  {"category": {"zh": "小食", "en": "Snacks"}, "name": {"zh": "薯條", "en": "French Fries"}, "price": 70},
+  {"category": {"zh": "小食", "en": "Snacks"}, "name": {"zh": "炸雞", "en": "Fried Chicken"}, "price": 110},
+  {"category": {"zh": "小食", "en": "Snacks"}, "name": {"zh": "沙律", "en": "Salad"}, "price": 90},
+  {"category": {"zh": "飲品", "en": "Drinks"}, "name": {"zh": "可樂", "en": "Cola"}, "price": 35},
+  {"category": {"zh": "飲品", "en": "Drinks"}, "name": {"zh": "咖啡", "en": "Coffee"}, "price": 80},
+  {"category": {"zh": "飲品", "en": "Drinks"}, "name": {"zh": "鮮榨果汁", "en": "Fresh Juice"}, "price": 100},
+  {"category": {"zh": "甜點", "en": "Desserts"}, "name": {"zh": "芝士蛋糕", "en": "Cheesecake"}, "price": 120},
+  {"category": {"zh": "甜點", "en": "Desserts"}, "name": {"zh": "雪糕", "en": "Ice Cream"}, "price": 85}
+]
