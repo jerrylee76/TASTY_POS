@@ -88,12 +88,20 @@ class POSApp(tk.Tk):
         self.current_category = "全部"
         self.tip_rate = 0
         self.menu_images = []
-        self.title(self.t("title")); self.geometry("1180x720"); self.minsize(980, 620)
+        self.title(self.t("title")); self.geometry("1180x720"); self.minsize(980, 620); self.resizable(False, False); self.protocol("WM_DELETE_WINDOW", self.request_exit)
+        try: self.state("zoomed")
+        except tk.TclError: pass
         self.configure(bg=self.settings.get("theme", "#f4f6f8"))
         self.make_style(); self.build_ui(); self.bind_shortcuts()
         self.after(250, self.show_guide)
 
     def t(self, key): return TEXT[self.lang].get(key, key)
+    def request_exit(self):
+        password = simpledialog.askstring("Password", "請輸入離開密碼 / Exit password", show="*", parent=self)
+        if password is None: return
+        if password != self.settings.get("history_password", "1234"):
+            messagebox.showerror("", "密碼錯誤 / Incorrect password", parent=self); return
+        self.destroy()
     def make_style(self):
         s = ttk.Style(self); s.theme_use("clam")
         s.configure("TFrame", background=self.settings.get("theme", "#f4f6f8"))
@@ -277,11 +285,15 @@ class POSApp(tk.Tk):
         with open(path, "w", encoding="utf-8") as f: f.write(self.receipt_text(order, cash))
         messagebox.showinfo(self.t("print"), f"收據已儲存 / Receipt saved:\n{path}")
     def show_stats(self):
-        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("600x430")
+        win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("850x680")
         period = tk.StringVar(value="日 / Day")
         ttk.Label(win, text="報表範圍 / Period").pack(anchor="w", padx=25, pady=(20, 5))
-        ttk.Combobox(win, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "年 / Year"], state="readonly", width=18).pack(anchor="w", padx=25)
-        summary = tk.StringVar(); ttk.Label(win, textvariable=summary, font=("Segoe UI", 14), justify="left").pack(anchor="w", padx=25, pady=25)
+        ttk.Combobox(win, textvariable=period, values=["日 / Day", "週 / Week", "月 / Month", "季 / Quarter", "年 / Year"], state="readonly", width=18).pack(anchor="w", padx=25)
+        summary = tk.StringVar(); ttk.Label(win, textvariable=summary, font=("Segoe UI", 14), justify="left").pack(anchor="w", padx=25, pady=12)
+        tables = ttk.Frame(win); tables.pack(fill="both", expand=True, padx=25)
+        item_tree = ttk.Treeview(tables, columns=("name", "qty", "sales"), show="headings", height=8); cat_tree = ttk.Treeview(tables, columns=("category", "qty", "sales"), show="headings", height=8)
+        for tree, title, first in [(item_tree, "依品項 / By Item", "品項 / Item"), (cat_tree, "依種類 / By Category", "種類 / Category")]:
+            box = ttk.LabelFrame(tables, text=title, padding=6); box.pack(side="left", fill="both", expand=True, padx=5); tree.heading(tree["columns"][0], text=first); tree.heading("qty", text="數量 / Qty"); tree.heading("sales", text="銷售額 / Sales"); tree.column(tree["columns"][0], width=180); tree.column("qty", width=70, anchor="center"); tree.column("sales", width=110, anchor="e"); tree.pack(fill="both", expand=True)
         def get_rows():
             now = datetime.now(); key = period.get().split(" ")[0]
             if key == "日": start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -297,6 +309,20 @@ class POSApp(tk.Tk):
         def refresh():
             rows = get_rows(); sales = sum(o.get("total", 0) for o in rows); tips = sum(o.get("tip", 0) for o in rows)
             summary.set(f"{self.t('completed')}: {len(rows)}\n{self.t('sales')}: {sales:,.2f} TWD\n{self.t('tip_total')}: {tips:,.2f} TWD")
+            item_data = {}; category_data = {}
+            category_by_name = {}
+            for category, raw_name, price, image, barcode in self.menu:
+                category_by_name[localized(raw_name, self.lang)] = localized(category, self.lang)
+                category_by_name[str(raw_name)] = localized(category, self.lang)
+            for order in rows:
+                for name, data in order.get("items", {}).items():
+                    qty = data.get("qty", 0); amount = data.get("price", 0) * qty; category = category_by_name.get(name, "未分類 / Other")
+                    item_data[name] = (item_data.get(name, (0, 0))[0] + qty, item_data.get(name, (0, 0))[1] + amount)
+                    category_data[category] = (category_data.get(category, (0, 0))[0] + qty, category_data.get(category, (0, 0))[1] + amount)
+            for tree in (item_tree, cat_tree):
+                for item in tree.get_children(): tree.delete(item)
+            for name, (qty, amount) in sorted(item_data.items(), key=lambda x: x[1][1], reverse=True): item_tree.insert("", "end", values=(name, qty, f"{amount:,.2f}"))
+            for category, (qty, amount) in sorted(category_data.items(), key=lambda x: x[1][1], reverse=True): cat_tree.insert("", "end", values=(category, qty, f"{amount:,.2f}"))
         def export():
             rows = get_rows(); path = os.path.join(DATA_DIR, f"sales_report_{datetime.now():%Y%m%d_%H%M%S}.csv"); os.makedirs(DATA_DIR, exist_ok=True)
             with open(path, "w", newline="", encoding="utf-8-sig") as f:
