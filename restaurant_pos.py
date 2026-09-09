@@ -4,6 +4,7 @@ import csv
 import math
 import textwrap
 import tkinter as tk
+import tkinter.font as tkfont
 from datetime import datetime, timedelta
 from tkinter import ttk, messagebox, simpledialog, colorchooser
 
@@ -18,6 +19,7 @@ MENU_FILE = os.path.join(APP_DIR, "menu.json")
 DEFAULT_SETTINGS = {
     "language": "zh", "tax_rate": 0.05, "currency": "TWD",
     "history_password": "1234",
+    "system_font": "Segoe UI", "system_font_size": 10,
     "menu_font": "Segoe UI", "menu_font_size": 10,
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
@@ -108,16 +110,17 @@ class POSApp(tk.Tk):
     def make_style(self):
         s = ttk.Style(self); s.theme_use("clam")
         self.apply_theme(s)
-        s.configure("Header.TLabel", font=("Segoe UI", 18, "bold"))
+        base_font = self.settings.get("system_font", "Segoe UI"); base_size = int(self.settings.get("system_font_size", 10))
+        s.configure("Header.TLabel", font=(base_font, base_size + 8, "bold"))
         s.configure("Card.TFrame", background="white", relief="groove", borderwidth=1)
-        s.configure("TButton", padding=7, font=("Segoe UI", 10))
+        s.configure("TButton", padding=7, font=(base_font, base_size))
 
     def apply_theme(self, style=None):
         color = self.settings.get("theme", "#f4f6f8")
         self.configure(bg=color)
         style = style or ttk.Style(self)
         style.configure("TFrame", background=color)
-        style.configure("TLabel", background=color, font=("Segoe UI", 10))
+        style.configure("TLabel", background=color, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10))))
         style.configure("TLabelframe", background=color)
         style.configure("TLabelframe.Label", background=color)
         style.configure("TCheckbutton", background=color)
@@ -254,7 +257,7 @@ class POSApp(tk.Tk):
     def show_settings(self):
         win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("760x760"); win.resizable(False, False)
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
-        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); system_font = tk.StringVar(value=self.settings.get("system_font", "Segoe UI")); system_font_size = tk.StringVar(value=str(self.settings.get("system_font_size", 10))); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
         tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
         ttk.Label(tax_box, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w"); ttk.Entry(tax_box, textvariable=tax, width=14).grid(row=0, column=1, sticky="w", padx=12)
         receipt_box = ttk.LabelFrame(f, text="收據版面 / Receipt Layout", padding=12); receipt_box.pack(fill="x", pady=(0, 12))
@@ -270,8 +273,11 @@ class POSApp(tk.Tk):
         ttk.Label(theme_box, text="色碼 / Color").pack(side="left"); ttk.Entry(theme_box, textvariable=theme, width=14).pack(side="left", padx=12); ttk.Button(theme_box, text="選擇顏色 / Pick", command=lambda: self.pick_color(theme)).pack(side="left")
         security_box = ttk.LabelFrame(f, text="安全性 / Security", padding=12); security_box.pack(fill="x", pady=(0, 12))
         ttk.Label(security_box, text="歷史訂單刪除密碼 / Delete password", width=38).grid(row=0, column=0, sticky="w"); ttk.Entry(security_box, textvariable=password, show="*", width=20).grid(row=0, column=1, sticky="w", padx=12)
+        font_list = sorted(set(tkfont.families(self)))
+        system_box = ttk.LabelFrame(f, text="系統字型 / System Font（菜單以外）", padding=12); system_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(system_box, text="字型 / Font", width=14).grid(row=0, column=0, sticky="w"); ttk.Combobox(system_box, textvariable=system_font, values=font_list, width=24).grid(row=0, column=1, sticky="w", padx=8); ttk.Label(system_box, text="大小 / Size", width=12).grid(row=0, column=2, sticky="w", padx=(20, 0)); ttk.Entry(system_box, textvariable=system_font_size, width=8).grid(row=0, column=3, sticky="w", padx=8)
         font_box = ttk.LabelFrame(f, text="菜單字型 / Menu Font", padding=12); font_box.pack(fill="x", pady=(0, 12))
-        ttk.Label(font_box, text="字型 / Font", width=14).grid(row=0, column=0, sticky="w"); ttk.Entry(font_box, textvariable=menu_font, width=24).grid(row=0, column=1, sticky="w", padx=8); ttk.Label(font_box, text="大小 / Size", width=12).grid(row=0, column=2, sticky="w", padx=(20, 0)); ttk.Entry(font_box, textvariable=menu_font_size, width=8).grid(row=0, column=3, sticky="w", padx=8)
+        ttk.Label(font_box, text="字型 / Font", width=14).grid(row=0, column=0, sticky="w"); ttk.Combobox(font_box, textvariable=menu_font, values=font_list, width=24).grid(row=0, column=1, sticky="w", padx=8); ttk.Label(font_box, text="大小 / Size", width=12).grid(row=0, column=2, sticky="w", padx=(20, 0)); ttk.Entry(font_box, textvariable=menu_font_size, width=8).grid(row=0, column=3, sticky="w", padx=8)
         def save():
             try:
                 self.settings["tax_rate"] = float(tax.get()) / 100
@@ -283,6 +289,7 @@ class POSApp(tk.Tk):
                 self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
                 if not password.get(): raise ValueError("password")
                 self.settings["history_password"] = password.get()
+                self.settings["system_font"] = system_font.get().strip() or "Segoe UI"; self.settings["system_font_size"] = max(8, min(32, int(system_font_size.get())))
                 self.settings["menu_font"] = menu_font.get().strip() or "Segoe UI"; self.settings["menu_font_size"] = max(8, min(32, int(menu_font_size.get())))
                 save_json(SETTINGS_FILE, self.settings); self.apply_theme(); win.destroy(); self.build_ui()
             except (ValueError, tk.TclError): messagebox.showerror("Error", "請輸入有效數字或有效色碼，例如 #f4f6f8")
