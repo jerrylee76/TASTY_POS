@@ -1,107 +1,163 @@
 [
   {
-    "category": "中式",
+    "category": "中式A",
+    "name": "壽司",
+    "price": 45.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式A",
     "name": "油條",
     "price": 19.0,
     "image": "images/beef_noodles.png",
     "barcode": ""
-    },
+  },
   {
-    "category": "中式",
+    "category": "中式A",
     "name": "燒餅",
     "price": 15.0,
     "image": "images/ribs_rice.png",
     "barcode": ""
-    },
-  {
-    "category": "中式",
-    "name": "紅豆餡餅",
-    "price": 35.0,
-    "image": "images/ribs_rice.png",
-    "barcode": ""
   },
   {
-    "category": "中式",
-    "name": "紫米飯團",
-    "price": 40.0,
-    "image": "",
-    "barcode": ""
-    },
-  {
-    "category": "中式",
-    "name": "芙蓉酥一粒",
-    "price": 28.0,
-    "image": "images/ribs_rice.png",
-    "barcode": ""
-    },
-  {
-    "category": "中式",
-    "name": "芙蓉酥二粒",
-    "price": 55.0,
-    "image": "images/ribs_rice.png",
-    "barcode": ""
-  },
-  {
-    "category": "中式",
+    "category": "中式A",
     "name": "荷包蛋",
     "price": 15.0,
     "image": "",
     "barcode": ""
-    },
+  },
   {
-    "category": "中式",
+    "category": "中式A",
     "name": "葱蛋",
     "price": 25.0,
     "image": "",
     "barcode": ""
   },
   {
-    "category": "中式",
-    "name": "葱餡餅",
-    "price": 35.0,
-    "image": "images/ribs_rice.png",
-    "barcode": ""
-  },
-  {
-    "category": "中式",
-    "name": "酸菜餡餅",
-    "price": 35.0,
-    "image": "images/ribs_rice.png",
-    "barcode": ""
-    },
-  {
-    "category": "中式",
+    "category": "中式A",
     "name": "雙胞胎",
     "price": 19.0,
     "image": "",
     "barcode": ""
   },
   {
-    "category": "主食",
-    "name": "炸雞",
-    "price": 110.0,
+    "category": "中式B",
+    "name": "包子",
+    "price": 20.0,
     "image": "",
     "barcode": ""
   },
   {
-    "category": "小食",
-    "name": "水煎包",
+    "category": "中式B",
+    "name": "小籠包一籠",
     "price": 70.0,
     "image": "",
     "barcode": ""
-    },
+  },
   {
-    "category": "小食",
+    "category": "中式B",
+    "name": "小籠包一粒",
+    "price": 7.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式B",
+    "name": "煎包",
+    "price": 12.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式B",
+    "name": "煎餃",
+    "price": 7.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式B",
+    "name": "白饅頭",
+    "price": 16.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式B",
+    "name": "紅糖饅頭",
+    "price": 18.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式C",
+    "name": "白米飯團",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式C",
+    "name": "紫米飯團",
+    "price": 40.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式C",
+    "name": "芙蓉酥一粒",
+    "price": 28.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式C",
+    "name": "芙蓉酥二粒",
+    "price": 55.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式C",
+    "name": "葱餅",
+    "price": 25.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式C",
     "name": "蛋餅",
-    "price": 70.0,
+    "price": 30.0,
     "image": "",
     "barcode": ""
   },
   {
-    "category": "日式",
-    "name": "壽司",
-    "price": 45.0,
+    "category": "中式F",
+    "name": "甜甜圈",
+    "price": 20.0,
     "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式F",
+    "name": "紅豆餡餅",
+    "price": 35.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式F",
+    "name": "葱餡餅",
+    "price": 35.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式F",
+    "name": "酸菜餡餅",
+    "price": 35.0,
+    "image": "images/ribs_rice.png",
     "barcode": ""
   },
   {
@@ -115,13 +171,6 @@
     "category": "洋食",
     "name": "咔啦堡",
     "price": 55.0,
-    "image": "",
-    "barcode": ""
-    },
-  {
-    "category": "洋食",
-    "name": "甜甜圈",
-    "price": 20.0,
     "image": "",
     "barcode": ""
   },
@@ -145,7 +194,7 @@
     "price": 40.0,
     "image": "",
     "barcode": ""
-    },
+  },
   {
     "category": "洋食",
     "name": "酥皮總匯",
@@ -154,35 +203,9 @@
     "barcode": ""
   },
   {
-    "category": {
-      "zh": "甜點",
-      "en": "Desserts"
-    },
-    "name": {
-      "zh": "雪糕",
-      "en": "Ice Cream"
-    },
-    "price": 85.0,
-    "image": "",
-    "barcode": ""
-  },
-  {
-    "category": {
-      "zh": "飲品",
-      "en": "Drinks"
-    },
-    "name": {
-      "zh": "可樂",
-      "en": "Cola"
-    },
-    "price": 35.0,
-    "image": "",
-    "barcode": ""
-  },
-  {
-    "category": "飲品",
-    "name": "咖啡",
-    "price": 35.0,
+    "category": "洋食",
+    "name": "香蒜吐司",
+    "price": 25.0,
     "image": "",
     "barcode": ""
   },
@@ -196,7 +219,7 @@
   {
     "category": "飲品",
     "name": "咖啡小",
-    "price": 35.0,
+    "price": 20.0,
     "image": "",
     "barcode": ""
   },
@@ -206,11 +229,25 @@
     "price": 25.0,
     "image": "",
     "barcode": ""
-    },
+  },
   {
     "category": "飲品",
     "name": "奶茶小",
     "price": 20.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "米漿大",
+    "price": 24.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "米漿小",
+    "price": 19.0,
     "image": "",
     "barcode": ""
   },
@@ -239,19 +276,6 @@
     "category": "飲品",
     "name": "豆漿小",
     "price": 19.0,
-    "image": "",
-    "barcode": ""
-  },
-  {
-    "category": {
-      "zh": "飲品",
-      "en": "Drinks"
-    },
-    "name": {
-      "zh": "鮮榨果汁",
-      "en": "Fresh Juice"
-    },
-    "price": 100.0,
     "image": "",
     "barcode": ""
   }

@@ -134,8 +134,9 @@ class POSApp(tk.Tk):
         ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
-        left = ttk.Frame(main, style="Card.TFrame", width=720, padding=12); left.pack(side="left", fill="both", expand=False, padx=(0, 8)); left.pack_propagate(False)
-        right = ttk.Frame(main, style="Card.TFrame", width=360, padding=12); right.pack(side="left", fill="both", expand=False); right.pack_propagate(False)
+        main.columnconfigure(0, weight=2, uniform="pos_columns"); main.columnconfigure(1, weight=1, uniform="pos_columns"); main.rowconfigure(0, weight=1)
+        left = ttk.Frame(main, style="Card.TFrame", padding=12); left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        right = ttk.Frame(main, style="Card.TFrame", padding=12); right.grid(row=0, column=1, sticky="nsew")
         ttk.Label(left, text=self.t("menu"), style="Header.TLabel").pack(anchor="w")
         scan = ttk.Frame(left); scan.pack(fill="x", pady=(6, 2))
         ttk.Label(scan, text="條碼 / Barcode").pack(side="left")
@@ -148,7 +149,15 @@ class POSApp(tk.Tk):
         self.cat_var = tk.StringVar(value=self.current_category)
         ttk.Combobox(left, textvariable=self.cat_var, values=cats, state="readonly", width=15).pack(anchor="w", pady=8)
         self.cat_var.trace_add("write", lambda *_: self.render_menu())
-        self.menu_frame = ttk.Frame(left); self.menu_frame.pack(fill="both", expand=True)
+        menu_area = ttk.Frame(left); menu_area.pack(fill="both", expand=True)
+        self.menu_canvas = tk.Canvas(menu_area, highlightthickness=0, background="white")
+        menu_scroll = ttk.Scrollbar(menu_area, orient="vertical", command=self.menu_canvas.yview)
+        self.menu_canvas.configure(yscrollcommand=menu_scroll.set)
+        menu_scroll.pack(side="right", fill="y"); self.menu_canvas.pack(side="left", fill="both", expand=True)
+        self.menu_frame = ttk.Frame(self.menu_canvas); self.menu_window = self.menu_canvas.create_window((0, 0), window=self.menu_frame, anchor="nw")
+        self.menu_frame.bind("<Configure>", lambda event: self.menu_canvas.configure(scrollregion=self.menu_canvas.bbox("all")))
+        self.menu_canvas.bind("<Configure>", lambda event: self.menu_canvas.itemconfigure(self.menu_window, width=event.width))
+        self.menu_canvas.bind_all("<MouseWheel>", lambda event: self.menu_canvas.yview_scroll(int(-event.delta / 120), "units"))
         self.render_menu()
         ttk.Label(right, text=self.t("cart"), style="Header.TLabel").pack(anchor="w")
         columns = ("name", "qty", "price", "sum")
@@ -181,7 +190,13 @@ class POSApp(tk.Tk):
         cat = self.cat_var.get() if hasattr(self, "cat_var") else "全部"
         items = sorted([x for x in self.menu if cat == "全部" or localized(x[0], self.lang) == cat], key=lambda x: (localized(x[0], self.lang), localized(x[1], self.lang)))
         self.menu_images = []
-        ttk.Style(self).configure("Menu.TButton", font=(self.settings.get("menu_font", "Segoe UI"), int(self.settings.get("menu_font_size", 10))))
+        style = ttk.Style(self); style.configure("Menu.TButton", font=(self.settings.get("menu_font", "Segoe UI"), int(self.settings.get("menu_font_size", 10))))
+        category_colors = ["#e8f1ff", "#fff1dc", "#e6f7ed", "#f1e8ff", "#e8f7f7", "#fff0f0", "#f5f0df"]
+        categories = sorted(set(localized(x[0], self.lang) for x in self.menu))
+        category_styles = {}
+        for index, category in enumerate(categories):
+            style_name = f"Menu{index}.TButton"; category_styles[category] = style_name
+            color = category_colors[index % len(category_colors)]; style.configure(style_name, font=(self.settings.get("menu_font", "Segoe UI"), int(self.settings.get("menu_font_size", 10))), background=color, foreground="#202124", padding=7)
         for i, (group, raw_name, price, image_path, barcode) in enumerate(items):
             name = localized(raw_name, self.lang)
             image = None
@@ -193,9 +208,9 @@ class POSApp(tk.Tk):
                     self.menu_images.append(image)
                 except tk.TclError:
                     image = None
-            b = ttk.Button(self.menu_frame, text=f"{name}\n${price:,.0f}", image=image, compound="top", style="Menu.TButton", command=lambda n=name, p=price: self.add_item(n, p))
-            b.grid(row=i//3, column=i%3, sticky="nsew", padx=5, pady=5, ipadx=10, ipady=12)
-        for col in range(3): self.menu_frame.columnconfigure(col, weight=1)
+            b = ttk.Button(self.menu_frame, text=f"{name}\n${price:,.0f}", image=image, compound="top", style=category_styles.get(localized(group, self.lang), "Menu.TButton"), command=lambda n=name, p=price: self.add_item(n, p))
+            b.grid(row=i//4, column=i%4, sticky="nsew", padx=5, pady=5, ipadx=10, ipady=12)
+        for col in range(4): self.menu_frame.columnconfigure(col, weight=1)
 
     def add_item(self, name, price):
         self.cart[name] = self.cart.get(name, {"price": price, "qty": 0}); self.cart[name]["qty"] += 1; self.refresh_cart()
