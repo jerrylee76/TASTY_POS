@@ -1,79 +1,168 @@
 [
   {
-    "category": {
-      "zh": "主食",
-      "en": "Main"
-    },
-    "name": {
-      "zh": "排骨飯",
-      "en": "Ribs Rice"
-    },
-    "price": 120.0,
-    "image": "images/ribs_rice.png",
-    "barcode": ""
-  },
-  {
-    "category": {
-      "zh": "主食",
-      "en": "Main"
-    },
-    "name": {
-      "zh": "牛肉麵",
-      "en": "Beef Noodles"
-    },
-    "price": 160.0,
+    "category": "中式",
+    "name": "油條",
+    "price": 19.0,
     "image": "images/beef_noodles.png",
     "barcode": ""
   },
   {
-    "category": {
-      "zh": "主食",
-      "en": "Main"
-    },
-    "name": {
-      "zh": "蔬菜意粉",
-      "en": "Vegetable Pasta"
-    },
-    "price": 150.0,
+    "category": "中式",
+    "name": "燒餅",
+    "price": 15.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "紅豆餡餅",
+    "price": 35.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "紫米飯團",
+    "price": 40.0,
     "image": "",
     "barcode": ""
   },
   {
-    "category": {
-      "zh": "小食",
-      "en": "Snacks"
-    },
-    "name": {
-      "zh": "薯條",
-      "en": "French Fries"
-    },
-    "price": 70.0,
+    "category": "中式",
+    "name": "芙蓉酥一粒",
+    "price": 28.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "芙蓉酥二粒",
+    "price": 55.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "荷包蛋",
+    "price": 15.0,
     "image": "",
     "barcode": ""
   },
   {
-    "category": {
-      "zh": "小食",
-      "en": "Snacks"
-    },
-    "name": {
-      "zh": "炸雞",
-      "en": "Fried Chicken"
-    },
+    "category": "中式",
+    "name": "葱蛋",
+    "price": 25.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "葱餡餅",
+    "price": 35.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "酸菜餡餅",
+    "price": 35.0,
+    "image": "images/ribs_rice.png",
+    "barcode": ""
+  },
+  {
+    "category": "中式",
+    "name": "雙胞胎",
+    "price": 19.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "主食",
+    "name": "炸雞",
     "price": 110.0,
     "image": "",
     "barcode": ""
   },
   {
+    "category": "小食",
+    "name": "水煎包",
+    "price": 70.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "小食",
+    "name": "蛋餅",
+    "price": 70.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "日式",
+    "name": "壽司",
+    "price": 45.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "各式莎啦堡",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "咔啦堡",
+    "price": 55.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "甜甜圈",
+    "price": 20.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "蛋香三明治",
+    "price": 30.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "起酥蛋糕",
+    "price": 40.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "酥皮三明治",
+    "price": 40.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "洋食",
+    "name": "酥皮總匯",
+    "price": 40.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
     "category": {
-      "zh": "小食",
-      "en": "Snacks"
+      "zh": "甜點",
+      "en": "Desserts"
     },
     "name": {
-      "zh": "沙律",
-      "en": "Salad"
+      "zh": "雪糕",
+      "en": "Ice Cream"
     },
-    "price": 90.0,
+    "price": 85.0,
     "image": "",
     "barcode": ""
   },
@@ -91,15 +180,65 @@
     "barcode": ""
   },
   {
-    "category": {
-      "zh": "飲品",
-      "en": "Drinks"
-    },
-    "name": {
-      "zh": "咖啡",
-      "en": "Coffee"
-    },
-    "price": 80.0,
+    "category": "飲品",
+    "name": "咖啡",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "咖啡大",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "咖啡小",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "奶茶大",
+    "price": 25.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "奶茶小",
+    "price": 20.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "紅茶大",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "紅茶小",
+    "price": 35.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "豆漿大",
+    "price": 24.0,
+    "image": "",
+    "barcode": ""
+  },
+  {
+    "category": "飲品",
+    "name": "豆漿小",
+    "price": 19.0,
     "image": "",
     "barcode": ""
   },
@@ -113,32 +252,6 @@
       "en": "Fresh Juice"
     },
     "price": 100.0,
-    "image": "",
-    "barcode": ""
-  },
-  {
-    "category": {
-      "zh": "甜點",
-      "en": "Desserts"
-    },
-    "name": {
-      "zh": "芝士蛋糕",
-      "en": "Cheesecake"
-    },
-    "price": 120.0,
-    "image": "",
-    "barcode": ""
-  },
-  {
-    "category": {
-      "zh": "甜點",
-      "en": "Desserts"
-    },
-    "name": {
-      "zh": "雪糕",
-      "en": "Ice Cream"
-    },
-    "price": 85.0,
     "image": "",
     "barcode": ""
   }

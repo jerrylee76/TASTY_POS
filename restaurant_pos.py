@@ -177,7 +177,7 @@ class POSApp(tk.Tk):
     def render_menu(self):
         for w in self.menu_frame.winfo_children(): w.destroy()
         cat = self.cat_var.get() if hasattr(self, "cat_var") else "全部"
-        items = [x for x in self.menu if cat == "全部" or localized(x[0], self.lang) == cat]
+        items = sorted([x for x in self.menu if cat == "全部" or localized(x[0], self.lang) == cat], key=lambda x: (localized(x[0], self.lang), localized(x[1], self.lang)))
         self.menu_images = []
         for i, (group, raw_name, price, image_path, barcode) in enumerate(items):
             name = localized(raw_name, self.lang)
@@ -471,6 +471,7 @@ class POSApp(tk.Tk):
             for var, val in zip(vars_, vals): var.set(val)
         tree.bind("<<TreeviewSelect>>", load_selected)
         def save_menu():
+            self.menu.sort(key=lambda x: (localized(x[0], self.lang), localized(x[1], self.lang)))
             new_menu = []
             for category, name, price, image, barcode in self.menu:
                 if isinstance(category, dict): category = {**category, self.lang: localized(category, self.lang)}
