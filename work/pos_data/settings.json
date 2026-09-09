@@ -3,6 +3,8 @@
   "tax_rate": 0.05,
   "currency": "TWD",
   "history_password": "1234",
+  "menu_font": "Segoe UI",
+  "menu_font_size": 14,
   "rates": {
     "TWD": 1.0,
     "USD": 0.031,

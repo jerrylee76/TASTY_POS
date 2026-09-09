@@ -126,16 +126,16 @@ class POSApp(tk.Tk):
         for w in self.winfo_children(): w.destroy()
         top = ttk.Frame(self); top.pack(fill="x", padx=16, pady=(14, 8))
         ttk.Label(top, text=self.t("title"), style="Header.TLabel").pack(side="left")
+        ttk.Button(top, text="離開 / Exit", command=self.request_exit).pack(side="right", padx=4)
         ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
         ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
         ttk.Button(top, text="菜單編輯 / Edit", command=self.show_menu_editor).pack(side="right", padx=4)
         ttk.Button(top, text="歷史訂單 / History", command=self.show_order_history).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
         ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
-        ttk.Button(top, text="離開 / Exit", command=self.request_exit).pack(side="right", padx=4)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
-        left = ttk.Frame(main, style="Card.TFrame", padding=12); left.pack(side="left", fill="both", expand=True, padx=(0, 8))
-        right = ttk.Frame(main, style="Card.TFrame", padding=12); right.pack(side="right", fill="both", expand=True)
+        left = ttk.Frame(main, style="Card.TFrame", width=720, padding=12); left.pack(side="left", fill="both", expand=False, padx=(0, 8)); left.pack_propagate(False)
+        right = ttk.Frame(main, style="Card.TFrame", width=360, padding=12); right.pack(side="left", fill="both", expand=False); right.pack_propagate(False)
         ttk.Label(left, text=self.t("menu"), style="Header.TLabel").pack(anchor="w")
         scan = ttk.Frame(left); scan.pack(fill="x", pady=(6, 2))
         ttk.Label(scan, text="條碼 / Barcode").pack(side="left")
@@ -237,7 +237,7 @@ class POSApp(tk.Tk):
         messagebox.showinfo(self.t("guide"), "點選餐點加入訂單，選擇小費與幣別後按 F9 結帳。\n\n快捷鍵：F2 設定、F4 清空、F9 結帳、Ctrl+P 收據、Ctrl+L 語言切換。\n可在設定中調整稅率、收據格式與介面顏色。" if self.lang == "zh" else "Click items to add. Choose tip/currency, then press F9 to checkout.\n\nShortcuts: F2 settings, F4 clear, F9 checkout, Ctrl+P receipt, Ctrl+L language.\nAdjust tax, receipt format and UI color in Settings.")
 
     def show_settings(self):
-        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("620x650"); win.resizable(False, False)
+        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("760x760"); win.resizable(False, False)
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
         tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
         tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
@@ -254,9 +254,9 @@ class POSApp(tk.Tk):
         theme_box = ttk.LabelFrame(f, text="介面主題 / Theme", padding=12); theme_box.pack(fill="x", pady=(0, 12))
         ttk.Label(theme_box, text="色碼 / Color").pack(side="left"); ttk.Entry(theme_box, textvariable=theme, width=14).pack(side="left", padx=12); ttk.Button(theme_box, text="選擇顏色 / Pick", command=lambda: self.pick_color(theme)).pack(side="left")
         security_box = ttk.LabelFrame(f, text="安全性 / Security", padding=12); security_box.pack(fill="x", pady=(0, 12))
-        ttk.Label(security_box, text="歷史訂單刪除密碼 / Delete password").pack(side="left"); ttk.Entry(security_box, textvariable=password, show="*", width=16).pack(side="left", padx=12)
+        ttk.Label(security_box, text="歷史訂單刪除密碼 / Delete password", width=38).grid(row=0, column=0, sticky="w"); ttk.Entry(security_box, textvariable=password, show="*", width=20).grid(row=0, column=1, sticky="w", padx=12)
         font_box = ttk.LabelFrame(f, text="菜單字型 / Menu Font", padding=12); font_box.pack(fill="x", pady=(0, 12))
-        ttk.Label(font_box, text="字型 / Font").pack(side="left"); ttk.Entry(font_box, textvariable=menu_font, width=18).pack(side="left", padx=8); ttk.Label(font_box, text="大小 / Size").pack(side="left"); ttk.Entry(font_box, textvariable=menu_font_size, width=6).pack(side="left", padx=8)
+        ttk.Label(font_box, text="字型 / Font", width=14).grid(row=0, column=0, sticky="w"); ttk.Entry(font_box, textvariable=menu_font, width=24).grid(row=0, column=1, sticky="w", padx=8); ttk.Label(font_box, text="大小 / Size", width=12).grid(row=0, column=2, sticky="w", padx=(20, 0)); ttk.Entry(font_box, textvariable=menu_font_size, width=8).grid(row=0, column=3, sticky="w", padx=8)
         def save():
             try:
                 self.settings["tax_rate"] = float(tax.get()) / 100
