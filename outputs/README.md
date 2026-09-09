@@ -12,6 +12,7 @@ python restaurant_pos.py
 
 - 點餐菜單、分類、數量增減、清空訂單；菜單由同目錄的 `menu.json` 匯入，支援條碼點餐
 - 菜單編輯視窗：可新增、修改、刪除分類、名稱、價格、條碼與圖片路徑，儲存後寫回 `menu.json`
+- Receipt Layout：可自訂收據抬頭、寬度，以及是否顯示稅額／小費
 - 中英文一鍵切換（`中 / EN` 或 `Ctrl+L`）
 - 稅率設定、TWD/USD/HKD/JPY 外幣結算與匯率設定
 - AA 制分單

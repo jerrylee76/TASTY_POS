@@ -213,27 +213,33 @@ class POSApp(tk.Tk):
         messagebox.showinfo(self.t("guide"), "點選餐點加入訂單，選擇小費與幣別後按 F9 結帳。\n\n快捷鍵：F2 設定、F4 清空、F9 結帳、Ctrl+P 收據、Ctrl+L 語言切換。\n可在設定中調整稅率、收據格式與介面顏色。" if self.lang == "zh" else "Click items to add. Choose tip/currency, then press F9 to checkout.\n\nShortcuts: F2 settings, F4 clear, F9 checkout, Ctrl+P receipt, Ctrl+L language.\nAdjust tax, receipt format and UI color in Settings.")
 
     def show_settings(self):
-        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("480x400")
+        win = tk.Toplevel(self); win.title(self.t("settings")); win.transient(self); win.grab_set(); win.geometry("620x650"); win.resizable(False, False)
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
-        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); header = tk.Text(f, height=4, width=42); header.insert("1.0", self.settings.get("receipt_header", ""))
-        ttk.Label(f, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w", pady=8); ttk.Entry(f, textvariable=tax, width=12).grid(row=0, column=1, sticky="w")
-        ttk.Label(f, text="Receipt header / 收據抬頭").grid(row=1, column=0, sticky="nw", pady=8); header.grid(row=1, column=1, sticky="w")
-        ttk.Label(f, text="TWD / USD / HKD / JPY rates").grid(row=2, column=0, sticky="w", pady=8)
-        rates = {}; rate_frame = ttk.Frame(f); rate_frame.grid(row=2, column=1, sticky="w")
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8"))
+        tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(tax_box, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w"); ttk.Entry(tax_box, textvariable=tax, width=14).grid(row=0, column=1, sticky="w", padx=12)
+        receipt_box = ttk.LabelFrame(f, text="收據版面 / Receipt Layout", padding=12); receipt_box.pack(fill="x", pady=(0, 12))
+        header = tk.Text(receipt_box, height=4, width=48); header.insert("1.0", self.settings.get("receipt_header", ""))
+        ttk.Label(receipt_box, text="抬頭 / Header").grid(row=0, column=0, sticky="nw"); header.grid(row=0, column=1, rowspan=2, sticky="w", padx=12)
+        ttk.Label(receipt_box, text="寬度 / Width").grid(row=2, column=0, sticky="w", pady=(10, 0)); ttk.Entry(receipt_box, textvariable=width, width=14).grid(row=2, column=1, sticky="w", padx=12, pady=(10, 0))
+        ttk.Checkbutton(receipt_box, text="顯示稅額 / Show tax", variable=show_tax).grid(row=3, column=0, sticky="w", pady=(8, 0)); ttk.Checkbutton(receipt_box, text="顯示小費 / Show tip", variable=show_tip).grid(row=3, column=1, sticky="w", padx=12, pady=(8, 0))
+        currency_box = ttk.LabelFrame(f, text="匯率設定 / Currency Rates（以 TWD=1 為基準）", padding=12); currency_box.pack(fill="x", pady=(0, 12))
+        rates = {}; rate_frame = ttk.Frame(currency_box); rate_frame.pack(anchor="w")
         for i, cur in enumerate(self.settings["rates"]):
-            rates[cur] = tk.StringVar(value=str(self.settings["rates"][cur])); ttk.Label(rate_frame, text=cur).grid(row=i, column=0); ttk.Entry(rate_frame, textvariable=rates[cur], width=10).grid(row=i, column=1)
-        ttk.Label(f, text="介面主題色 / Theme").grid(row=3, column=0, sticky="w", pady=8)
-        ttk.Entry(f, textvariable=theme, width=12).grid(row=3, column=1, sticky="w")
-        ttk.Button(f, text="選擇顏色", command=lambda: self.pick_color(theme)).grid(row=3, column=1, padx=(105, 0), sticky="w")
+            rates[cur] = tk.StringVar(value=str(self.settings["rates"][cur])); ttk.Label(rate_frame, text=cur, width=8).grid(row=0, column=i, padx=4); ttk.Entry(rate_frame, textvariable=rates[cur], width=12).grid(row=1, column=i, padx=4)
+        theme_box = ttk.LabelFrame(f, text="介面主題 / Theme", padding=12); theme_box.pack(fill="x", pady=(0, 12))
+        ttk.Label(theme_box, text="色碼 / Color").pack(side="left"); ttk.Entry(theme_box, textvariable=theme, width=14).pack(side="left", padx=12); ttk.Button(theme_box, text="選擇顏色 / Pick", command=lambda: self.pick_color(theme)).pack(side="left")
         def save():
             try:
                 self.settings["tax_rate"] = float(tax.get()) / 100
                 self.settings["receipt_header"] = header.get("1.0", "end").strip()
                 self.settings["rates"] = {cur: float(v.get()) for cur, v in rates.items()}
                 self.settings["theme"] = theme.get().strip() or "#f4f6f8"
+                self.settings["receipt_width"] = max(20, min(80, int(width.get())))
+                self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
                 save_json(SETTINGS_FILE, self.settings); win.destroy(); self.build_ui()
             except ValueError: messagebox.showerror("Error", "請輸入有效數字")
-        ttk.Button(f, text=self.t("save"), command=save).grid(row=4, column=1, sticky="e", pady=18)
+        action = ttk.Frame(f); action.pack(fill="x", pady=(4, 0)); ttk.Button(action, text="取消 / Cancel", command=win.destroy).pack(side="right"); ttk.Button(action, text=self.t("save"), command=save).pack(side="right", padx=8)
     def pick_color(self, variable):
         chosen = colorchooser.askcolor(color=variable.get(), parent=self)[1]
         if chosen: variable.set(chosen)
@@ -251,9 +257,12 @@ class POSApp(tk.Tk):
         self.orders.append(order); save_json(ORDERS_FILE, self.orders); self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
     def receipt_text(self, order=None, cash=None):
         o = order or {"subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
-        cur = o["currency"]; lines = [self.settings.get("receipt_header", ""), "-"*int(self.settings.get("receipt_width", 38))]
+        cur = o["currency"]; receipt_width = int(self.settings.get("receipt_width", 38)); lines = [self.settings.get("receipt_header", ""), "-"*receipt_width]
         for name, x in o["items"].items(): lines.append(f"{name[:20]:20} x{x['qty']:<2} {x['price']*x['qty']:>8.2f}")
-        lines += ["-"*38, f"{self.t('subtotal')}: {o['subtotal']:,.2f} TWD", f"{self.t('tax')}: {o['tax']:,.2f} TWD", f"{self.t('tip')}: {o['tip']:,.2f} TWD", f"{self.t('total')}: {o['total']*o['rate']:,.2f} {cur}"]
+        lines.append("-"*receipt_width); lines.append(f"{self.t('subtotal')}: {o['subtotal']:,.2f} TWD")
+        if self.settings.get("show_tax", True): lines.append(f"{self.t('tax')}: {o['tax']:,.2f} TWD")
+        if self.settings.get("show_tip", True): lines.append(f"{self.t('tip')}: {o['tip']:,.2f} TWD")
+        lines.append(f"{self.t('total')}: {o['total']*o['rate']:,.2f} {cur}")
         if cash is not None: lines.append(f"{self.t('change')}: {cash-o['total']*o['rate']:,.2f} {cur}")
         return "\n".join(lines) + "\n" + datetime.now().strftime("%Y-%m-%d %H:%M")
     def print_receipt(self, order=None, cash=None):
