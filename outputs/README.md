@@ -10,7 +10,8 @@ python restaurant_pos.py
 
 ## 已包含功能
 
-- 點餐菜單、分類、數量增減、清空訂單；菜單由同目錄的 `menu.json` 匯入
+- 點餐菜單、分類、數量增減、清空訂單；菜單由同目錄的 `menu.json` 匯入，支援條碼點餐
+- 菜單編輯視窗：可新增、修改、刪除分類、名稱、價格、條碼與圖片路徑，儲存後寫回 `menu.json`
 - 中英文一鍵切換（`中 / EN` 或 `Ctrl+L`）
 - 稅率設定、TWD/USD/HKD/JPY 外幣結算與匯率設定
 - AA 制分單
@@ -22,4 +23,4 @@ python restaurant_pos.py
 
 ## 後續可擴充
 
-目前「列印」先輸出 UTF-8 純文字收據，適合先驗證流程；接入實體熱敏印表機時，可把 `print_receipt()` 改接 Windows 印表機或 ESC/POS 驅動。修改 `menu.json` 後重新啟動程式即可載入新菜單。`category`、`name` 支援 `{ "zh": "中文", "en": "English" }`，另可加入 `image` 指向同目錄下的 PNG/GIF 圖片；圖片不存在時會自動退回文字顯示。
+目前「列印」先輸出 UTF-8 純文字收據，適合先驗證流程；接入實體熱敏印表機時，可把 `print_receipt()` 改接 Windows 印表機或 ESC/POS 驅動。修改 `menu.json` 後重新啟動程式即可載入新菜單。`category`、`name` 支援 `{ "zh": "中文", "en": "English" }`，另可加入 `barcode` 與 `image` 指向同目錄下的 PNG/GIF 圖片；圖片不存在時會自動退回文字顯示。
