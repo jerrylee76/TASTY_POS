@@ -15,6 +15,7 @@ PROJECT_DIR = os.path.dirname(APP_DIR) if os.path.basename(APP_DIR).lower() == "
 DATA_DIR = os.path.join(PROJECT_DIR, "work", "pos_data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
+PENDING_FILE = os.path.join(DATA_DIR, "pending_orders.json")
 MENU_FILE = os.path.join(APP_DIR, "menu.json")
 
 DEFAULT_SETTINGS = {
@@ -103,6 +104,7 @@ class POSApp(tk.Tk):
         self.settings = {**DEFAULT_SETTINGS, **load_json(SETTINGS_FILE, {})}
         self.settings["rates"] = {**DEFAULT_SETTINGS["rates"], **self.settings.get("rates", {})}
         self.orders = load_json(ORDERS_FILE, [])
+        self.pending_orders = load_json(PENDING_FILE, [])
         self.menu = load_menu()
         self.cart = {}
         self.lang = self.settings.get("language", "zh")
@@ -110,6 +112,7 @@ class POSApp(tk.Tk):
         self.tip_rate = 0
         self.menu_images = []
         self.floating_order_win = None
+        self.active_pending_order = None
         self.current_order_no = self.next_order_no()
         self.title(self.t("title")); self.geometry("1180x720"); self.resizable(False, False); self.protocol("WM_DELETE_WINDOW", self.request_exit)
         try: self.overrideredirect(True); self.attributes("-fullscreen", True)
@@ -152,21 +155,28 @@ class POSApp(tk.Tk):
 
     def build_ui(self):
         for w in self.winfo_children(): w.destroy()
-        top = ttk.Frame(self); top.pack(fill="x", padx=16, pady=(14, 8))
+        top = ttk.Frame(self); top.pack(fill="x", padx=14, pady=(10, 6))
         ttk.Label(top, text=self.t("title"), style="Header.TLabel").pack(side="left")
-        ttk.Button(top, text="離開 / Exit", command=self.request_exit).pack(side="right", padx=4)
-        ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
-        ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
-        ttk.Button(top, text="菜單編輯 / Edit", command=lambda: self.protected_action(self.show_menu_editor)).pack(side="right", padx=4)
-        ttk.Button(top, text="歷史訂單 / History", command=lambda: self.protected_action(self.show_order_history)).pack(side="right", padx=4)
-        ttk.Button(top, text=self.t("stats"), command=lambda: self.protected_action(self.show_stats)).pack(side="right", padx=4)
-        ttk.Button(top, text=self.t("settings"), command=lambda: self.protected_action(self.show_settings)).pack(side="right", padx=4)
-        main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
-        main.columnconfigure(0, weight=2, uniform="pos_columns"); main.columnconfigure(1, weight=1, uniform="pos_columns"); main.rowconfigure(0, weight=1)
-        left = ttk.Frame(main, style="Card.TFrame", padding=12); left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        right = ttk.Frame(main, style="Card.TFrame", padding=12); right.grid(row=0, column=1, sticky="nsew")
-        ttk.Label(left, text=self.t("menu"), style="Header.TLabel").pack(anchor="w")
-        scan = ttk.Frame(left); scan.pack(fill="x", pady=(6, 2))
+        ttk.Label(top, text=datetime.now().strftime("%Y-%m-%d  %H:%M"), font=(self.settings.get("system_font", "Segoe UI"), 11)).pack(side="left", padx=18)
+        ttk.Button(top, text="離開 / Exit", command=self.request_exit).pack(side="right", padx=3)
+        ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=3)
+        main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=14, pady=6)
+        main.columnconfigure(0, weight=0); main.columnconfigure(1, weight=1); main.columnconfigure(2, weight=2); main.columnconfigure(3, weight=1); main.rowconfigure(0, weight=1)
+        nav = tk.Frame(main, bg="#123b5d", width=74); nav.grid(row=0, column=0, sticky="ns", padx=(0, 8)); nav.grid_propagate(False)
+        for label, command in [("收銀\nPOS", lambda: None), ("統計", lambda: self.protected_action(self.show_stats)), ("歷史", lambda: self.protected_action(self.show_order_history)), ("設定", lambda: self.protected_action(self.show_settings)), ("編輯", lambda: self.protected_action(self.show_menu_editor)), ("計算機", self.show_calculator)]:
+            tk.Button(nav, text=label, command=command, bg="#123b5d", fg="white", activebackground="#1d587f", activeforeground="white", relief="flat", borderwidth=0, font=(self.settings.get("system_font", "Segoe UI"), 9), pady=12).pack(fill="x", padx=5, pady=3)
+        left = ttk.Frame(main, style="Card.TFrame", padding=10); left.grid(row=0, column=1, sticky="nsew", padx=(0, 8))
+        center = ttk.Frame(main, style="Card.TFrame", padding=10); center.grid(row=0, column=2, sticky="nsew", padx=(0, 8))
+        right = ttk.Frame(main, style="Card.TFrame", padding=10); right.grid(row=0, column=3, sticky="nsew")
+        order_header = ttk.Frame(left); order_header.pack(fill="x")
+        ttk.Label(order_header, text=self.t("cart"), style="Header.TLabel").pack(side="left")
+        self.order_no_var = tk.StringVar(value=f"NO. {self.current_order_no}"); ttk.Label(order_header, textvariable=self.order_no_var, font=(self.settings.get("system_font", "Segoe UI"), 10, "bold"), foreground="#b91c1c").pack(side="right", pady=5)
+        columns = ("name", "qty", "price", "sum"); self.tree = ttk.Treeview(left, columns=columns, show="headings", height=15)
+        for c, h in zip(columns, [self.t("name"), self.t("qty"), self.t("price"), self.t("subtotal")]): self.tree.heading(c, text=h); self.tree.column(c, width=75, anchor="center")
+        self.tree.pack(fill="both", expand=True, pady=8)
+        btns = ttk.Frame(left); btns.pack(fill="x"); ttk.Button(btns, text="＋", width=4, command=lambda: self.change_selected(1)).pack(side="left"); ttk.Button(btns, text="－", width=4, command=lambda: self.change_selected(-1)).pack(side="left", padx=4); ttk.Button(btns, text=self.t("clear"), command=self.clear_cart).pack(side="right"); ttk.Button(btns, text="送出訂單 / Send", command=self.submit_order).pack(side="right", padx=6)
+        ttk.Label(center, text=self.t("menu"), style="Header.TLabel").pack(anchor="w")
+        scan = ttk.Frame(center); scan.pack(fill="x", pady=(6, 2))
         ttk.Label(scan, text="條碼 / Barcode").pack(side="left")
         self.barcode_var = tk.StringVar()
         self.barcode_entry = ttk.Entry(scan, textvariable=self.barcode_var, width=18)
@@ -175,9 +185,9 @@ class POSApp(tk.Tk):
         ttk.Button(scan, text="加入", command=self.add_by_barcode).pack(side="left")
         cats = ["全部"] + sorted(set(localized(x[0], self.lang) for x in self.menu))
         self.cat_var = tk.StringVar(value=self.current_category)
-        ttk.Combobox(left, textvariable=self.cat_var, values=cats, state="readonly", width=15).pack(anchor="w", pady=8)
+        ttk.Combobox(center, textvariable=self.cat_var, values=cats, state="readonly", width=15).pack(anchor="w", pady=8)
         self.cat_var.trace_add("write", lambda *_: self.render_menu())
-        menu_area = ttk.Frame(left); menu_area.pack(fill="both", expand=True)
+        menu_area = ttk.Frame(center); menu_area.pack(fill="both", expand=True)
         self.menu_canvas = tk.Canvas(menu_area, highlightthickness=0, background="white")
         menu_scroll = ttk.Scrollbar(menu_area, orient="vertical", command=self.menu_canvas.yview)
         self.menu_canvas.configure(yscrollcommand=menu_scroll.set)
@@ -187,20 +197,14 @@ class POSApp(tk.Tk):
         self.menu_canvas.bind("<Configure>", lambda event: self.menu_canvas.itemconfigure(self.menu_window, width=event.width))
         self.menu_canvas.bind_all("<MouseWheel>", lambda event: self.menu_canvas.yview_scroll(int(-event.delta / 120), "units"))
         self.render_menu()
-        order_header = ttk.Frame(right); order_header.pack(fill="x")
-        ttk.Label(order_header, text=self.t("cart"), style="Header.TLabel").pack(side="left")
-        self.order_no_var = tk.StringVar(value=f"NO. {self.current_order_no}")
-        ttk.Label(order_header, textvariable=self.order_no_var, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10)), "bold"), foreground="#b91c1c").pack(side="right", pady=5)
-        columns = ("name", "qty", "price", "sum")
-        self.tree = ttk.Treeview(right, columns=columns, show="headings", height=13)
-        heads = [self.t("name"), self.t("qty"), self.t("price"), self.t("subtotal")]
-        for c, h in zip(columns, heads): self.tree.heading(c, text=h); self.tree.column(c, width=105, anchor="center")
-        self.tree.pack(fill="both", expand=True, pady=8)
-        btns = ttk.Frame(right); btns.pack(fill="x")
-        ttk.Button(btns, text="＋", width=4, command=lambda: self.change_selected(1)).pack(side="left")
-        ttk.Button(btns, text="－", width=4, command=lambda: self.change_selected(-1)).pack(side="left", padx=4)
-        ttk.Button(btns, text=self.t("clear"), command=self.clear_cart).pack(side="right")
-        pay = ttk.Frame(right); pay.pack(fill="x", pady=(10, 0))
+        ttk.Label(right, text="結帳 / Payment", style="Header.TLabel").pack(anchor="w")
+        ttk.Label(right, text="未結帳單據 / Unpaid Orders", font=(self.settings.get("system_font", "Segoe UI"), 11, "bold")).pack(anchor="w", pady=(8, 3))
+        pending_area = ttk.Frame(right, height=150); pending_area.pack(fill="x", pady=(0, 8)); pending_area.pack_propagate(False)
+        self.pending_tree = ttk.Treeview(pending_area, columns=("no", "time", "total"), show="headings", height=5)
+        for col, title, width in [("no", "單號 / No.", 145), ("time", "時間", 100), ("total", "金額", 85)]: self.pending_tree.heading(col, text=title); self.pending_tree.column(col, width=width, anchor="center")
+        pending_scroll = ttk.Scrollbar(pending_area, orient="vertical", command=self.pending_tree.yview); self.pending_tree.configure(yscrollcommand=pending_scroll.set); pending_scroll.pack(side="right", fill="y"); self.pending_tree.pack(side="left", fill="both", expand=True); self.pending_tree.bind("<<TreeviewSelect>>", self.load_pending_order)
+        self.refresh_pending_orders()
+        pay = ttk.Frame(right); pay.pack(fill="x", pady=(12, 0))
         self.currency_var = tk.StringVar(value=self.settings.get("currency", "TWD"))
         ttk.Label(pay, text=self.t("currency")).grid(row=0, column=0, sticky="w")
         ttk.Combobox(pay, textvariable=self.currency_var, values=list(self.settings["rates"].keys()), state="readonly", width=8).grid(row=0, column=1, padx=5)
@@ -210,7 +214,7 @@ class POSApp(tk.Tk):
         self.tip_var.trace_add("write", lambda *_: self.update_totals())
         self.total_var = tk.StringVar(); self.detail_var = tk.StringVar()
         ttk.Label(right, textvariable=self.detail_var, justify="right").pack(anchor="e", pady=(10, 0))
-        ttk.Label(right, textvariable=self.total_var, font=("Segoe UI", 18, "bold")).pack(anchor="e")
+        ttk.Label(right, textvariable=self.total_var, font=(self.settings.get("system_font", "Segoe UI"), 18, "bold"), foreground="#d92d20").pack(anchor="e")
         ttk.Button(right, text=self.t("split"), command=self.split_bill).pack(side="left", pady=10)
         ttk.Button(right, text=self.t("print"), command=self.print_receipt).pack(side="left", padx=6, pady=10)
         ttk.Button(right, text=self.t("pay"), command=self.checkout).pack(side="right", pady=10)
@@ -253,6 +257,18 @@ class POSApp(tk.Tk):
                 try: numbers.append(int(order_no.rsplit("-", 1)[1]))
                 except ValueError: pass
         return f"{today}-{(max(numbers) + 1 if numbers else 0):04d}"
+    def submit_order(self):
+        if not self.cart: return messagebox.showwarning("", self.t("empty"), parent=self)
+        sub, tax, tip, total = self.amounts(); cur = self.currency_var.get(); order = {"order_no": self.current_order_no, "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": self.settings["rates"].get(cur, 1), "payment": "pending", "items": self.cart.copy()}
+        self.pending_orders.append(order); save_json(PENDING_FILE, self.pending_orders); self.active_pending_order = None; self.clear_cart(); self.current_order_no = self.next_order_no(); self.order_no_var.set(f"NO. {self.current_order_no}"); self.refresh_pending_orders(); messagebox.showinfo("", "訂單已送出，請從未結帳表格選擇結帳。\nOrder sent. Select it from Unpaid Orders to checkout.", parent=self)
+    def refresh_pending_orders(self):
+        if not hasattr(self, "pending_tree"): return
+        for item in self.pending_tree.get_children(): self.pending_tree.delete(item)
+        for i, order in enumerate(self.pending_orders): self.pending_tree.insert("", "end", iid=str(i), values=(order.get("order_no", ""), order.get("time", "")[-8:], f"{order.get('total', 0):,.2f}"))
+    def load_pending_order(self, event=None):
+        selection = self.pending_tree.selection()
+        if not selection: return
+        order = self.pending_orders[int(selection[0])]; self.active_pending_order = order; self.cart = {name: data.copy() for name, data in order.get("items", {}).items()}; self.current_order_no = order.get("order_no", self.current_order_no); self.order_no_var.set(f"NO. {self.current_order_no}"); self.refresh_cart()
     def add_by_barcode(self, event=None):
         code = self.barcode_var.get().strip()
         for category, raw_name, price, image_path, barcode in self.menu:
@@ -382,7 +398,10 @@ class POSApp(tk.Tk):
         if cash is None: return
         if cash < due: return messagebox.showerror("", f"不足 / Insufficient: {due-cash:,.2f} {cur}")
         order = {"order_no": self.current_order_no, "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
-        self.orders.append(order); save_json(ORDERS_FILE, self.orders); self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
+        self.orders.append(order); save_json(ORDERS_FILE, self.orders)
+        if self.active_pending_order in self.pending_orders:
+            self.pending_orders.remove(self.active_pending_order); save_json(PENDING_FILE, self.pending_orders); self.active_pending_order = None; self.refresh_pending_orders()
+        self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
         self.current_order_no = self.next_order_no()
         if hasattr(self, "order_no_var"): self.order_no_var.set(f"NO. {self.current_order_no}")
     def receipt_text(self, order=None, cash=None):
