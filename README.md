@@ -52,3 +52,32 @@ python restaurant_pos.py
 
 5. 菜單圖片須放在 `images` 資料夾，並在 `menu.json` 使用正確的相對路徑，例如 `"image": "images/ribs_rice.png"`。圖片支援 PNG/GIF；圖片不存在時會顯示文字菜單。
 6. 第一次使用的離開／歷史訂單刪除密碼是 `1234`，請登入後到「系統設定 → 安全性」修改。
+
+## 打包成 Windows EXE
+
+在已安裝 Python 的開發電腦上開啟 PowerShell：
+
+```powershell
+cd "C:\你的路徑\TASTY_POS"
+python -m pip install --upgrade pyinstaller
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name TASTY_POS restaurant_pos.py
+```
+
+PyInstaller 的 `--onefile --windowed` 會產生不開啟黑色命令列視窗的單一 EXE。[PyInstaller 官方說明](https://pyinstaller.org/en/stable/usage.html)
+
+打包完成後，請把以下內容放在 `dist` 資料夾並與 `TASTY_POS.exe` 同一層：
+
+```text
+dist\TASTY_POS.exe
+dist\menu.json
+dist\images\       （菜單圖片，可選）
+dist\work\          （要保留歷史訂單時才複製）
+```
+
+啟動：
+
+```powershell
+dist\TASTY_POS.exe
+```
+
+`menu.json`、`images` 與 `work` 不建議直接打包進單一 EXE，因為菜單和歷史訂單需要在執行後持續修改；程式會以 EXE 所在目錄讀取這些資料。

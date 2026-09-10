@@ -2,6 +2,7 @@ import json
 import os
 import csv
 import math
+import sys
 import textwrap
 import tkinter as tk
 import tkinter.font as tkfont
@@ -9,7 +10,7 @@ from datetime import datetime, timedelta
 from tkinter import ttk, messagebox, simpledialog, colorchooser
 
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(APP_DIR) if os.path.basename(APP_DIR).lower() == "outputs" else APP_DIR
 DATA_DIR = os.path.join(PROJECT_DIR, "work", "pos_data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
@@ -82,6 +83,20 @@ def localized(value, language):
     return str(value)
 
 
+def display_width(value):
+    return sum(2 if ord(char) > 255 else 1 for char in str(value))
+
+
+def fit_receipt_text(value, width):
+    result = ""
+    used = 0
+    for char in str(value):
+        char_width = 2 if ord(char) > 255 else 1
+        if used + char_width > width: break
+        result += char; used += char_width
+    return result + (" " * max(0, width - used))
+
+
 class POSApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -95,6 +110,7 @@ class POSApp(tk.Tk):
         self.tip_rate = 0
         self.menu_images = []
         self.floating_order_win = None
+        self.current_order_no = self.next_order_no()
         self.title(self.t("title")); self.geometry("1180x720"); self.resizable(False, False); self.protocol("WM_DELETE_WINDOW", self.request_exit)
         try: self.overrideredirect(True); self.attributes("-fullscreen", True)
         except tk.TclError: self.state("zoomed")
@@ -110,6 +126,12 @@ class POSApp(tk.Tk):
         if password != self.settings.get("history_password", "1234"):
             messagebox.showerror("", "密碼錯誤 / Incorrect password", parent=self); return
         self.destroy()
+    def protected_action(self, action):
+        password = simpledialog.askstring("Password", "請輸入管理密碼 / Admin password", show="*", parent=self)
+        if password is None: return
+        if password != self.settings.get("history_password", "1234"):
+            messagebox.showerror("", "密碼錯誤 / Incorrect password", parent=self); return
+        action()
     def make_style(self):
         s = ttk.Style(self); s.theme_use("clam")
         self.apply_theme(s)
@@ -135,10 +157,10 @@ class POSApp(tk.Tk):
         ttk.Button(top, text="離開 / Exit", command=self.request_exit).pack(side="right", padx=4)
         ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=4)
         ttk.Button(top, text="計算機 / Calc", command=self.show_calculator).pack(side="right", padx=4)
-        ttk.Button(top, text="菜單編輯 / Edit", command=self.show_menu_editor).pack(side="right", padx=4)
-        ttk.Button(top, text="歷史訂單 / History", command=self.show_order_history).pack(side="right", padx=4)
-        ttk.Button(top, text=self.t("stats"), command=self.show_stats).pack(side="right", padx=4)
-        ttk.Button(top, text=self.t("settings"), command=self.show_settings).pack(side="right", padx=4)
+        ttk.Button(top, text="菜單編輯 / Edit", command=lambda: self.protected_action(self.show_menu_editor)).pack(side="right", padx=4)
+        ttk.Button(top, text="歷史訂單 / History", command=lambda: self.protected_action(self.show_order_history)).pack(side="right", padx=4)
+        ttk.Button(top, text=self.t("stats"), command=lambda: self.protected_action(self.show_stats)).pack(side="right", padx=4)
+        ttk.Button(top, text=self.t("settings"), command=lambda: self.protected_action(self.show_settings)).pack(side="right", padx=4)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=16, pady=8)
         main.columnconfigure(0, weight=2, uniform="pos_columns"); main.columnconfigure(1, weight=1, uniform="pos_columns"); main.rowconfigure(0, weight=1)
         left = ttk.Frame(main, style="Card.TFrame", padding=12); left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
@@ -165,7 +187,10 @@ class POSApp(tk.Tk):
         self.menu_canvas.bind("<Configure>", lambda event: self.menu_canvas.itemconfigure(self.menu_window, width=event.width))
         self.menu_canvas.bind_all("<MouseWheel>", lambda event: self.menu_canvas.yview_scroll(int(-event.delta / 120), "units"))
         self.render_menu()
-        ttk.Label(right, text=self.t("cart"), style="Header.TLabel").pack(anchor="w")
+        order_header = ttk.Frame(right); order_header.pack(fill="x")
+        ttk.Label(order_header, text=self.t("cart"), style="Header.TLabel").pack(side="left")
+        self.order_no_var = tk.StringVar(value=f"NO. {self.current_order_no}")
+        ttk.Label(order_header, textvariable=self.order_no_var, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10)), "bold"), foreground="#b91c1c").pack(side="right", pady=5)
         columns = ("name", "qty", "price", "sum")
         self.tree = ttk.Treeview(right, columns=columns, show="headings", height=13)
         heads = [self.t("name"), self.t("qty"), self.t("price"), self.t("subtotal")]
@@ -220,6 +245,14 @@ class POSApp(tk.Tk):
 
     def add_item(self, name, price):
         self.cart[name] = self.cart.get(name, {"price": price, "qty": 0}); self.cart[name]["qty"] += 1; self.refresh_cart()
+    def next_order_no(self):
+        today = datetime.now().strftime("%Y%m%d"); numbers = []
+        for order in self.orders:
+            order_no = str(order.get("order_no", ""))
+            if order_no.startswith(today + "-"):
+                try: numbers.append(int(order_no.rsplit("-", 1)[1]))
+                except ValueError: pass
+        return f"{today}-{(max(numbers) + 1 if numbers else 0):04d}"
     def add_by_barcode(self, event=None):
         code = self.barcode_var.get().strip()
         for category, raw_name, price, image_path, barcode in self.menu:
@@ -235,11 +268,23 @@ class POSApp(tk.Tk):
         self.refresh_floating_order()
     def open_floating_order(self):
         if self.floating_order_win and self.floating_order_win.winfo_exists(): return
-        win = self.floating_order_win = tk.Toplevel(self); win.title("目前訂單 / Current Order"); win.geometry("380x520"); win.resizable(False, False); win.protocol("WM_DELETE_WINDOW", self.close_floating_order)
+        win = self.floating_order_win = tk.Toplevel(self); win.title("目前訂單 / Current Order"); win.geometry("480x720"); win.resizable(False, False); win.protocol("WM_DELETE_WINDOW", self.close_floating_order)
         ttk.Label(win, text="目前訂單 / Current Order", style="Header.TLabel").pack(anchor="w", padx=14, pady=12)
+        ttk.Label(win, text="菜單點餐 / Menu", font=(self.settings.get("system_font", "Segoe UI"), 11, "bold")).pack(anchor="w", padx=14)
+        menu_area = ttk.Frame(win, height=225); menu_area.pack(fill="x", padx=14, pady=5); menu_area.pack_propagate(False)
+        menu_canvas = tk.Canvas(menu_area, background="white", highlightthickness=0); menu_scroll = ttk.Scrollbar(menu_area, orient="vertical", command=menu_canvas.yview); menu_canvas.configure(yscrollcommand=menu_scroll.set); menu_scroll.pack(side="right", fill="y"); menu_canvas.pack(side="left", fill="both", expand=True)
+        floating_menu = ttk.Frame(menu_canvas); menu_window = menu_canvas.create_window((0, 0), window=floating_menu, anchor="nw")
+        floating_menu.bind("<Configure>", lambda event: menu_canvas.configure(scrollregion=menu_canvas.bbox("all"))); menu_canvas.bind("<Configure>", lambda event: menu_canvas.itemconfigure(menu_window, width=event.width))
+        floating_items = sorted(self.menu, key=lambda x: (localized(x[0], self.lang), localized(x[1], self.lang)))
+        for index, (category, raw_name, price, image_path, barcode) in enumerate(floating_items):
+            name = localized(raw_name, self.lang); ttk.Button(floating_menu, text=f"{name}\n${price:,.0f}", style="Menu.TButton", command=lambda n=name, p=price: self.add_item(n, p)).grid(row=index//3, column=index%3, sticky="nsew", padx=3, pady=3, ipadx=4, ipady=5)
+        for col in range(3): floating_menu.columnconfigure(col, weight=1)
+        ttk.Separator(win).pack(fill="x", padx=14, pady=5)
+        ttk.Label(win, text="訂單內容 / Order Items", font=(self.settings.get("system_font", "Segoe UI"), 11, "bold")).pack(anchor="w", padx=14)
         self.floating_order_list = tk.Listbox(win, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10))))
         self.floating_order_list.pack(fill="both", expand=True, padx=14, pady=5)
         self.floating_order_total = tk.StringVar(); ttk.Label(win, textvariable=self.floating_order_total, font=(self.settings.get("system_font", "Segoe UI"), 16, "bold")).pack(anchor="e", padx=14, pady=12)
+        ttk.Button(win, text="送出訂單 / Send Order", command=self.submit_floating_order).pack(fill="x", padx=14, pady=(0, 14))
         self.refresh_floating_order()
     def close_floating_order(self):
         if self.floating_order_win and self.floating_order_win.winfo_exists(): self.floating_order_win.destroy()
@@ -249,6 +294,9 @@ class POSApp(tk.Tk):
         self.floating_order_list.delete(0, "end")
         for name, item in self.cart.items(): self.floating_order_list.insert("end", f"{name}  x{item['qty']}  ${item['price']*item['qty']:,.2f}")
         self.floating_order_total.set(f"{self.t('total')}: {self.amounts()[3]:,.2f} TWD")
+    def submit_floating_order(self):
+        if not self.cart: return messagebox.showwarning("", self.t("empty"), parent=self.floating_order_win or self)
+        self.print_receipt()
     def change_selected(self, delta):
         sel = self.tree.selection()
         if not sel: return
@@ -333,12 +381,14 @@ class POSApp(tk.Tk):
         cash = simpledialog.askfloat(self.t("pay"), f"{self.t('cash')} ({cur})\n{self.t('total')}: {due:,.2f}", minvalue=0, parent=self)
         if cash is None: return
         if cash < due: return messagebox.showerror("", f"不足 / Insufficient: {due-cash:,.2f} {cur}")
-        order = {"order_no": f"{datetime.now():%Y%m%d%H%M%S}-{len(self.orders)+1:03d}", "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
+        order = {"order_no": self.current_order_no, "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
         self.orders.append(order); save_json(ORDERS_FILE, self.orders); self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
+        self.current_order_no = self.next_order_no()
+        if hasattr(self, "order_no_var"): self.order_no_var.set(f"NO. {self.current_order_no}")
     def receipt_text(self, order=None, cash=None):
-        o = order or {"subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
-        cur = o["currency"]; receipt_width = int(self.settings.get("receipt_width", 38)); lines = [self.settings.get("receipt_header", ""), "-"*receipt_width]
-        for name, x in o["items"].items(): lines.append(f"{name[:20]:20} x{x['qty']:<2} {x['price']*x['qty']:>8.2f}")
+        o = order or {"order_no": self.current_order_no, "subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
+        cur = o["currency"]; receipt_width = int(self.settings.get("receipt_width", 38)); name_width = max(10, receipt_width - 16); lines = [self.settings.get("receipt_header", ""), f"訂單號碼 / ORDER NO.: {o.get('order_no', 'N/A')}", "-"*receipt_width, f"{fit_receipt_text('ITEM', name_width)} {'QTY':^5} {'AMT':^9}", "-"*receipt_width]
+        for name, x in o["items"].items(): lines.append(f"{fit_receipt_text(name, name_width)} {x['qty']:>5} {x['price']*x['qty']:>9.2f}")
         lines.append("-"*receipt_width); lines.append(f"{self.t('subtotal')}: {o['subtotal']:,.2f} TWD")
         if self.settings.get("show_tax", True): lines.append(f"{self.t('tax')}: {o['tax']:,.2f} TWD")
         if self.settings.get("show_tip", True): lines.append(f"{self.t('tip')}: {o['tip']:,.2f} TWD")
@@ -347,9 +397,21 @@ class POSApp(tk.Tk):
         return "\n".join(lines) + "\n" + datetime.now().strftime("%Y-%m-%d %H:%M")
     def print_receipt(self, order=None, cash=None):
         if order is None and not self.cart: return messagebox.showwarning("", self.t("empty"))
-        path = os.path.join(DATA_DIR, "receipt_latest.txt"); os.makedirs(DATA_DIR, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f: f.write(self.receipt_text(order, cash))
-        messagebox.showinfo(self.t("print"), f"收據已儲存 / Receipt saved:\n{path}")
+        preview = tk.Toplevel(self); preview.title("收據預覽 / Receipt Preview"); preview.geometry("520x680"); preview.transient(self); preview.grab_set()
+        ttk.Label(preview, text="收據預覽 / Receipt Preview", style="Header.TLabel").pack(anchor="w", padx=16, pady=12)
+        text_box = tk.Text(preview, width=48, height=30, font=("Consolas", 11), wrap="none", bg="#ffffff")
+        text_box.insert("1.0", self.receipt_text(order, cash)); text_box.tag_add("receipt_title", "1.0", "1.0 lineend"); text_box.tag_configure("receipt_title", font=("Consolas", 20, "bold")); text_box.tag_add("receipt_subtitle", "2.0", "2.0 lineend"); text_box.tag_configure("receipt_subtitle", font=("Consolas", 15))
+        order_line = text_box.search("訂單號碼 / ORDER NO.", "1.0")
+        if order_line:
+            text_box.tag_add("order_number", order_line, f"{order_line} lineend"); text_box.tag_configure("order_number", font=("Consolas", 15, "bold"), foreground="#b91c1c")
+        text_box.configure(state="disabled"); text_box.pack(fill="both", expand=True, padx=16, pady=(0, 12))
+        actions = ttk.Frame(preview); actions.pack(fill="x", padx=16, pady=(0, 16))
+        def confirm_print():
+            path = os.path.join(DATA_DIR, "receipt_latest.txt"); os.makedirs(DATA_DIR, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f: f.write(self.receipt_text(order, cash))
+            preview.destroy(); messagebox.showinfo(self.t("print"), f"收據已輸出 / Receipt saved:\n{path}", parent=self)
+        ttk.Button(actions, text="取消 / Cancel", command=preview.destroy).pack(side="right")
+        ttk.Button(actions, text="確認輸出 / Print", command=confirm_print).pack(side="right", padx=8)
     def show_stats(self):
         win = tk.Toplevel(self); win.title(self.t("stats")); win.geometry("1120x760"); win.minsize(1000, 680)
         period = tk.StringVar(value="日 / Day")

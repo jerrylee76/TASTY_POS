@@ -7,7 +7,7 @@
   "system_font_size": 12,
   "menu_font": "Microsoft YaHei",
   "menu_font_size": 14,
-  "floating_order": false,
+  "floating_order": true,
   "rates": {
     "TWD": 1.0,
     "USD": 0.031,
