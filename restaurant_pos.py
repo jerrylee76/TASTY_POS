@@ -17,6 +17,7 @@ SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 PENDING_FILE = os.path.join(DATA_DIR, "pending_orders.json")
 MENU_FILE = os.path.join(APP_DIR, "menu.json")
+ABOUT_FILE = os.path.join(APP_DIR, "about.json")
 
 DEFAULT_SETTINGS = {
     "language": "zh", "tax_rate": 0.05, "currency": "TWD",
@@ -24,6 +25,7 @@ DEFAULT_SETTINGS = {
     "system_font": "Segoe UI", "system_font_size": 10,
     "menu_font": "Segoe UI", "menu_font_size": 10,
     "floating_order": False,
+    "checkout_print": False,
     "sequence_date": "", "daily_sequence": 0,
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
@@ -164,7 +166,7 @@ class POSApp(tk.Tk):
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=14, pady=6)
         main.columnconfigure(0, weight=0); main.columnconfigure(1, weight=1); main.columnconfigure(2, weight=2); main.columnconfigure(3, weight=1); main.rowconfigure(0, weight=1)
         nav = tk.Frame(main, bg="#123b5d", width=74); nav.grid(row=0, column=0, sticky="ns", padx=(0, 8)); nav.grid_propagate(False)
-        for label, command in [("收銀\nPOS", lambda: None), ("統計", lambda: self.protected_action(self.show_stats)), ("歷史", lambda: self.protected_action(self.show_order_history)), ("設定", lambda: self.protected_action(self.show_settings)), ("編輯", lambda: self.protected_action(self.show_menu_editor)), ("計算機", self.show_calculator)]:
+        for label, command in [("收銀\nPOS", lambda: None), ("統計", lambda: self.protected_action(self.show_stats)), ("歷史", lambda: self.protected_action(self.show_order_history)), ("設定", lambda: self.protected_action(self.show_settings)), ("編輯", lambda: self.protected_action(self.show_menu_editor)), ("計算機", self.show_calculator), ("關於\nAbout", self.show_about)]:
             tk.Button(nav, text=label, command=command, bg="#123b5d", fg="white", activebackground="#1d587f", activeforeground="white", relief="flat", borderwidth=0, font=(self.settings.get("system_font", "Segoe UI"), 9), pady=12).pack(fill="x", padx=5, pady=3)
         left = ttk.Frame(main, style="Card.TFrame", padding=10); left.grid(row=0, column=1, sticky="nsew", padx=(0, 8))
         center = ttk.Frame(main, style="Card.TFrame", padding=10); center.grid(row=0, column=2, sticky="nsew", padx=(0, 8))
@@ -175,7 +177,7 @@ class POSApp(tk.Tk):
         columns = ("name", "qty", "price", "sum"); self.tree = ttk.Treeview(left, columns=columns, show="headings", height=15)
         for c, h in zip(columns, [self.t("name"), self.t("qty"), self.t("price"), self.t("subtotal")]): self.tree.heading(c, text=h); self.tree.column(c, width=75, anchor="center")
         self.tree.pack(fill="both", expand=True, pady=8)
-        btns = ttk.Frame(left); btns.pack(fill="x"); ttk.Button(btns, text="＋", width=4, command=lambda: self.change_selected(1)).pack(side="left"); ttk.Button(btns, text="－", width=4, command=lambda: self.change_selected(-1)).pack(side="left", padx=4); ttk.Button(btns, text=self.t("clear"), command=self.clear_cart).pack(side="right"); ttk.Button(btns, text="送出訂單 / Send", command=self.submit_order).pack(side="right", padx=6)
+        btns = ttk.Frame(left); btns.pack(fill="x"); ttk.Button(btns, text="＋", width=4, command=lambda: self.change_selected(1)).pack(side="left"); ttk.Button(btns, text="－", width=4, command=lambda: self.change_selected(-1)).pack(side="left", padx=4); ttk.Button(btns, text=self.t("clear"), command=self.clear_cart).pack(side="right"); ttk.Button(btns, text="送出訂單 / Send", command=self.submit_order).pack(side="right", padx=6); ttk.Button(btns, text="直接結帳 / Pay Now", command=self.checkout).pack(side="right", padx=6)
         ttk.Label(center, text=self.t("menu"), style="Header.TLabel").pack(anchor="w")
         scan = ttk.Frame(center); scan.pack(fill="x", pady=(6, 2))
         ttk.Label(scan, text="條碼 / Barcode").pack(side="left")
@@ -350,7 +352,7 @@ class POSApp(tk.Tk):
         try: win.state("zoomed")
         except tk.TclError: pass
         f = ttk.Frame(win, padding=18); f.pack(fill="both", expand=True)
-        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); floating_order = tk.BooleanVar(value=self.settings.get("floating_order", False)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); system_font = tk.StringVar(value=self.settings.get("system_font", "Segoe UI")); system_font_size = tk.StringVar(value=str(self.settings.get("system_font_size", 10))); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
+        tax = tk.StringVar(value=str(float(self.settings.get("tax_rate", .05))*100)); width = tk.StringVar(value=str(self.settings.get("receipt_width", 38))); show_tax = tk.BooleanVar(value=self.settings.get("show_tax", True)); show_tip = tk.BooleanVar(value=self.settings.get("show_tip", True)); floating_order = tk.BooleanVar(value=self.settings.get("floating_order", False)); checkout_print = tk.BooleanVar(value=self.settings.get("checkout_print", False)); theme = tk.StringVar(value=self.settings.get("theme", "#f4f6f8")); password = tk.StringVar(value=self.settings.get("history_password", "1234")); system_font = tk.StringVar(value=self.settings.get("system_font", "Segoe UI")); system_font_size = tk.StringVar(value=str(self.settings.get("system_font_size", 10))); menu_font = tk.StringVar(value=self.settings.get("menu_font", "Segoe UI")); menu_font_size = tk.StringVar(value=str(self.settings.get("menu_font_size", 10)))
         tax_box = ttk.LabelFrame(f, text="稅務設定 / Tax", padding=12); tax_box.pack(fill="x", pady=(0, 12))
         ttk.Label(tax_box, text=f"{self.t('tax')} (%)").grid(row=0, column=0, sticky="w"); ttk.Entry(tax_box, textvariable=tax, width=14).grid(row=0, column=1, sticky="w", padx=12)
         receipt_box = ttk.LabelFrame(f, text="收據版面 / Receipt Layout", padding=12); receipt_box.pack(fill="x", pady=(0, 12))
@@ -358,6 +360,7 @@ class POSApp(tk.Tk):
         ttk.Label(receipt_box, text="抬頭 / Header").grid(row=0, column=0, sticky="nw"); header.grid(row=0, column=1, rowspan=2, sticky="w", padx=12)
         ttk.Label(receipt_box, text="寬度 / Width").grid(row=2, column=0, sticky="w", pady=(10, 0)); ttk.Entry(receipt_box, textvariable=width, width=14).grid(row=2, column=1, sticky="w", padx=12, pady=(10, 0))
         ttk.Checkbutton(receipt_box, text="顯示稅額 / Show tax", variable=show_tax).grid(row=3, column=0, sticky="w", pady=(8, 0)); ttk.Checkbutton(receipt_box, text="顯示小費 / Show tip", variable=show_tip).grid(row=3, column=1, sticky="w", padx=12, pady=(8, 0))
+        ttk.Checkbutton(receipt_box, text="結帳並列印收據 / Print on checkout", variable=checkout_print).grid(row=4, column=0, columnspan=2, sticky="w", pady=(8, 0))
         currency_box = ttk.LabelFrame(f, text="匯率設定 / Currency Rates（以 TWD=1 為基準）", padding=12); currency_box.pack(fill="x", pady=(0, 12))
         rates = {}; rate_frame = ttk.Frame(currency_box); rate_frame.pack(anchor="w")
         for i, cur in enumerate(self.settings["rates"]):
@@ -381,6 +384,7 @@ class POSApp(tk.Tk):
                 self.winfo_rgb(self.settings["theme"])
                 self.settings["receipt_width"] = max(20, min(80, int(width.get())))
                 self.settings["show_tax"] = show_tax.get(); self.settings["show_tip"] = show_tip.get()
+                self.settings["checkout_print"] = checkout_print.get()
                 if not password.get(): raise ValueError("password")
                 self.settings["history_password"] = password.get()
                 self.settings["floating_order"] = floating_order.get()
@@ -409,6 +413,7 @@ class POSApp(tk.Tk):
         self.orders.append(order); save_json(ORDERS_FILE, self.orders)
         if self.active_pending_order in self.pending_orders:
             self.pending_orders.remove(self.active_pending_order); save_json(PENDING_FILE, self.pending_orders); self.active_pending_order = None; self.refresh_pending_orders()
+        if self.settings.get("checkout_print", False): self.print_receipt(order, cash)
         self.clear_cart(); self.current_order_no = self.next_order_no(); self.order_no_var.set(f"NO. {self.current_order_no}"); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
     def receipt_text(self, order=None, cash=None):
         o = order or {"order_no": self.current_order_no, "subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
@@ -584,6 +589,14 @@ class POSApp(tk.Tk):
         for i in range(4): grid.columnconfigure(i, weight=1)
         for i in range(len(keys)): grid.rowconfigure(i, weight=1)
         display.focus_set()
+
+    def show_about(self):
+        info = load_json(ABOUT_FILE, {"version": "1.0.0", "author": "TASTY POS Team", "build_date": "2026-09-10"})
+        win = tk.Toplevel(self); win.title("關於 / About"); win.geometry("420x300"); win.resizable(False, False); win.transient(self); win.grab_set()
+        content = ttk.Frame(win); content.pack(fill="both", expand=True)
+        ttk.Label(content, text="好味道\nTASTY POS", style="Header.TLabel", justify="center", anchor="center").pack(expand=True)
+        ttk.Label(content, text=f"Version  {info.get('version', 'N/A')}\nAuthor   {info.get('author', 'N/A')}\nBuild Date  {info.get('build_date', 'N/A')}", justify="center", anchor="center", font=(self.settings.get("system_font", "Segoe UI"), 12)).pack(expand=True)
+        ttk.Button(content, text="關閉 / Close", command=win.destroy).pack(pady=18)
 
     def show_menu_editor(self):
         win = tk.Toplevel(self); win.title("菜單編輯 / Menu Editor"); win.geometry("780x560"); win.transient(self)
