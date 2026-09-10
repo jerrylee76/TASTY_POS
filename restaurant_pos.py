@@ -24,6 +24,7 @@ DEFAULT_SETTINGS = {
     "system_font": "Segoe UI", "system_font_size": 10,
     "menu_font": "Segoe UI", "menu_font_size": 10,
     "floating_order": False,
+    "sequence_date": "", "daily_sequence": 0,
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
     "receipt_header": "好味道餐廳\nThank you for dining with us", "receipt_width": 38,
@@ -204,6 +205,9 @@ class POSApp(tk.Tk):
         for col, title, width in [("no", "單號 / No.", 145), ("time", "時間", 100), ("total", "金額", 85)]: self.pending_tree.heading(col, text=title); self.pending_tree.column(col, width=width, anchor="center")
         pending_scroll = ttk.Scrollbar(pending_area, orient="vertical", command=self.pending_tree.yview); self.pending_tree.configure(yscrollcommand=pending_scroll.set); pending_scroll.pack(side="right", fill="y"); self.pending_tree.pack(side="left", fill="both", expand=True); self.pending_tree.bind("<<TreeviewSelect>>", self.load_pending_order)
         self.refresh_pending_orders()
+        ttk.Label(right, text="帳單內容 / Bill Details", font=(self.settings.get("system_font", "Segoe UI"), 11, "bold")).pack(anchor="w", pady=(4, 3))
+        bill_area = ttk.Frame(right); bill_area.pack(fill="both", expand=True, pady=(0, 8))
+        self.bill_list = tk.Listbox(bill_area, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10)))); self.bill_list.pack(fill="both", expand=True)
         pay = ttk.Frame(right); pay.pack(fill="x", pady=(12, 0))
         self.currency_var = tk.StringVar(value=self.settings.get("currency", "TWD"))
         ttk.Label(pay, text=self.t("currency")).grid(row=0, column=0, sticky="w")
@@ -250,16 +254,16 @@ class POSApp(tk.Tk):
     def add_item(self, name, price):
         self.cart[name] = self.cart.get(name, {"price": price, "qty": 0}); self.cart[name]["qty"] += 1; self.refresh_cart()
     def next_order_no(self):
-        today = datetime.now().strftime("%Y%m%d"); numbers = []
-        for order in self.orders:
-            order_no = str(order.get("order_no", ""))
-            if order_no.startswith(today + "-"):
-                try: numbers.append(int(order_no.rsplit("-", 1)[1]))
-                except ValueError: pass
-        return f"{today}-{(max(numbers) + 1 if numbers else 0):04d}"
+        today = datetime.now().strftime("%Y%m%d")
+        sequence = int(self.settings.get("daily_sequence", 0)) if self.settings.get("sequence_date") == today else 0
+        return f"{today}-{sequence:04d}"
+    def take_order_no(self):
+        order_no = self.next_order_no(); today = datetime.now().strftime("%Y%m%d")
+        self.settings["sequence_date"] = today; self.settings["daily_sequence"] = int(order_no.rsplit("-", 1)[1]) + 1; save_json(SETTINGS_FILE, self.settings)
+        return order_no
     def submit_order(self):
         if not self.cart: return messagebox.showwarning("", self.t("empty"), parent=self)
-        sub, tax, tip, total = self.amounts(); cur = self.currency_var.get(); order = {"order_no": self.current_order_no, "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": self.settings["rates"].get(cur, 1), "payment": "pending", "items": self.cart.copy()}
+        sub, tax, tip, total = self.amounts(); cur = self.currency_var.get(); order = {"order_no": self.take_order_no(), "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": self.settings["rates"].get(cur, 1), "payment": "pending", "items": self.cart.copy()}
         self.pending_orders.append(order); save_json(PENDING_FILE, self.pending_orders); self.active_pending_order = None; self.clear_cart(); self.current_order_no = self.next_order_no(); self.order_no_var.set(f"NO. {self.current_order_no}"); self.refresh_pending_orders(); messagebox.showinfo("", "訂單已送出，請從未結帳表格選擇結帳。\nOrder sent. Select it from Unpaid Orders to checkout.", parent=self)
     def refresh_pending_orders(self):
         if not hasattr(self, "pending_tree"): return
@@ -268,7 +272,10 @@ class POSApp(tk.Tk):
     def load_pending_order(self, event=None):
         selection = self.pending_tree.selection()
         if not selection: return
-        order = self.pending_orders[int(selection[0])]; self.active_pending_order = order; self.cart = {name: data.copy() for name, data in order.get("items", {}).items()}; self.current_order_no = order.get("order_no", self.current_order_no); self.order_no_var.set(f"NO. {self.current_order_no}"); self.refresh_cart()
+        order = self.pending_orders[int(selection[0])]; self.active_pending_order = order; self.cart = {name: data.copy() for name, data in order.get("items", {}).items()}; self.current_order_no = order.get("order_no", self.current_order_no); self.order_no_var.set(f"NO. {self.current_order_no}")
+        self.bill_list.delete(0, "end")
+        for name, item in self.cart.items(): self.bill_list.insert("end", f"{name}    x{item['qty']}    ${item['price']*item['qty']:,.2f}")
+        self.update_totals()
     def add_by_barcode(self, event=None):
         code = self.barcode_var.get().strip()
         for category, raw_name, price, image_path, barcode in self.menu:
@@ -397,7 +404,8 @@ class POSApp(tk.Tk):
         cash = simpledialog.askfloat(self.t("pay"), f"{self.t('cash')} ({cur})\n{self.t('total')}: {due:,.2f}", minvalue=0, parent=self)
         if cash is None: return
         if cash < due: return messagebox.showerror("", f"不足 / Insufficient: {due-cash:,.2f} {cur}")
-        order = {"order_no": self.current_order_no, "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
+        order_no = self.active_pending_order.get("order_no") if self.active_pending_order else self.take_order_no()
+        order = {"order_no": order_no, "time": datetime.now().isoformat(timespec="seconds"), "subtotal": sub, "tax": tax, "tip": tip, "total": total, "currency": cur, "rate": rate, "payment": "cash", "items": self.cart.copy()}
         self.orders.append(order); save_json(ORDERS_FILE, self.orders)
         if self.active_pending_order in self.pending_orders:
             self.pending_orders.remove(self.active_pending_order); save_json(PENDING_FILE, self.pending_orders); self.active_pending_order = None; self.refresh_pending_orders()
