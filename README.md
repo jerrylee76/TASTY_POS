@@ -81,3 +81,64 @@ dist\TASTY_POS.exe
 ```
 
 `menu.json`、`images` 與 `work` 不建議直接打包進單一 EXE，因為菜單和歷史訂單需要在執行後持續修改；程式會以 EXE 所在目錄讀取這些資料。
+
+## 跨平台網頁版建置需求
+
+本系統未來可改為跨平台網頁版，讓 Windows、macOS、Linux、Android 平板與 iPad 透過瀏覽器使用，也可進一步製作成 PWA。
+
+### 開發環境
+
+- Windows 10／11、macOS 或 Linux 開發電腦
+- Python 3.11 或更新版本
+- FastAPI
+- SQLite（單機）或 PostgreSQL（多台收銀機）
+- Git、VS Code
+- Chrome、Edge 或 Firefox
+- 若使用 React／Vue 前端，需安裝 Node.js
+
+```powershell
+python --version
+git --version
+node --version
+```
+
+### 門市收銀設備
+
+- Windows 電腦、筆電或平板
+- 觸控螢幕（可選）
+- USB 條碼掃描器
+- 熱敏收據印表機
+- 錢箱（可選）
+- 穩定網路
+- UPS 備用電源（建議）
+
+USB 條碼掃描器通常會被瀏覽器視為鍵盤，不需要額外驅動程式。
+
+### 部署方式
+
+#### 單機版
+
+適合小型店面：在一台收銀電腦執行 FastAPI，使用 SQLite 儲存資料。優點是簡單、不需外部伺服器；缺點是只能在該電腦使用。
+
+#### 區域網路版
+
+適合多台收銀機：在店內主機執行 FastAPI 與 PostgreSQL，其他收銀機、平板透過瀏覽器連線。
+
+#### 雲端版
+
+正式上線可準備 Linux VPS 或雲端主機、網域名稱、HTTPS 憑證、PostgreSQL、自動備份、防火牆、登入權限與操作紀錄。
+
+### Windows 7 注意事項
+
+Windows 7 的瀏覽器通常較舊，不建議作為主要收銀設備。建議收銀端使用 Windows 10／11 或更新版本；Windows 7 僅作為測試設備。
+
+### 最基本配置
+
+```text
+Windows 10／11 電腦
+Python 3.11
+FastAPI + SQLite
+Chrome 或 Edge
+USB 條碼掃描器
+熱敏收據印表機
+```

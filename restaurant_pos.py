@@ -29,12 +29,12 @@ DEFAULT_SETTINGS = {
     "sequence_date": "", "daily_sequence": 0,
     "rates": {"TWD": 1.0, "USD": 0.031, "HKD": 0.242, "JPY": 4.62},
     "tip_options": [0, 0.05, 0.10, 0.15], "theme": "#f4f6f8",
-    "receipt_header": "好味道餐廳\nThank you for dining with us", "receipt_width": 38,
+    "receipt_header": "湘芸早午餐\nThank you for dining with us", "receipt_width": 38,
     "show_tax": True, "show_tip": True,
 }
 
 TEXT = {
-    "zh": {"title": "好味道｜點餐收銀系統", "menu": "菜單", "cart": "目前訂單", "qty": "數量", "price": "單價", "subtotal": "小計", "tax": "稅額", "tip": "小費", "total": "應付合計", "pay": "結帳 (F9)", "clear": "清空 (F4)", "settings": "系統設定 (F2)", "stats": "業績統計", "print": "列印收據 (Ctrl+P)", "split": "AA制分單", "currency": "幣別", "cash": "收款", "change": "找零", "add": "加入", "tip_rate": "小費比例", "guide": "操作提示", "completed": "已完成訂單", "sales": "營業額", "tip_total": "小費總額", "close": "關閉", "save": "儲存", "category": "分類", "all": "全部", "empty": "尚未加入餐點", "success": "交易完成", "name": "餐點名稱"},
+    "zh": {"title": "湘芸早午餐｜點餐收銀系統", "menu": "菜單", "cart": "目前訂單", "qty": "數量", "price": "單價", "subtotal": "小計", "tax": "稅額", "tip": "小費", "total": "應付合計", "pay": "結帳 (F9)", "clear": "清空 (F4)", "settings": "系統設定 (F2)", "stats": "業績統計", "print": "列印收據 (Ctrl+P)", "split": "AA制分單", "currency": "幣別", "cash": "收款", "change": "找零", "add": "加入", "tip_rate": "小費比例", "guide": "操作提示", "completed": "已完成訂單", "sales": "營業額", "tip_total": "小費總額", "close": "關閉", "save": "儲存", "category": "分類", "all": "全部", "empty": "尚未加入餐點", "success": "交易完成", "name": "餐點名稱"},
     "en": {"title": "Good Taste | Restaurant POS", "menu": "Menu", "cart": "Current order", "qty": "Qty", "price": "Unit price", "subtotal": "Subtotal", "tax": "Tax", "tip": "Tip", "total": "Total", "pay": "Checkout (F9)", "clear": "Clear (F4)", "settings": "Settings (F2)", "stats": "Sales stats", "print": "Print receipt (Ctrl+P)", "split": "Split AA", "currency": "Currency", "cash": "Cash received", "change": "Change", "add": "Add", "tip_rate": "Tip rate", "guide": "Quick guide", "completed": "Completed orders", "sales": "Sales", "tip_total": "Tips", "close": "Close", "save": "Save", "category": "Category", "all": "All", "empty": "No items yet", "success": "Payment complete", "name": "Item name"},
 }
 
