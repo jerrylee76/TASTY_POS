@@ -409,9 +409,7 @@ class POSApp(tk.Tk):
         self.orders.append(order); save_json(ORDERS_FILE, self.orders)
         if self.active_pending_order in self.pending_orders:
             self.pending_orders.remove(self.active_pending_order); save_json(PENDING_FILE, self.pending_orders); self.active_pending_order = None; self.refresh_pending_orders()
-        self.print_receipt(order, cash); self.clear_cart(); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
-        self.current_order_no = self.next_order_no()
-        if hasattr(self, "order_no_var"): self.order_no_var.set(f"NO. {self.current_order_no}")
+        self.clear_cart(); self.current_order_no = self.next_order_no(); self.order_no_var.set(f"NO. {self.current_order_no}"); messagebox.showinfo(self.t("success"), f"{self.t('change')}: {cash-due:,.2f} {cur}")
     def receipt_text(self, order=None, cash=None):
         o = order or {"order_no": self.current_order_no, "subtotal": self.amounts()[0], "tax": self.amounts()[1], "tip": self.amounts()[2], "total": self.amounts()[3], "currency": self.currency_var.get(), "rate": self.settings["rates"].get(self.currency_var.get(), 1), "items": self.cart}
         cur = o["currency"]; receipt_width = int(self.settings.get("receipt_width", 38)); name_width = max(10, receipt_width - 16); lines = [self.settings.get("receipt_header", ""), f"訂單號碼 / ORDER NO.: {o.get('order_no', 'N/A')}", "-"*receipt_width, f"{fit_receipt_text('ITEM', name_width)} {'QTY':^5} {'AMT':^9}", "-"*receipt_width]

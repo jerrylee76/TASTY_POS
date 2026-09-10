@@ -8,6 +8,8 @@
   "menu_font": "Microsoft YaHei",
   "menu_font_size": 14,
   "floating_order": false,
+  "sequence_date": "20260910",
+  "daily_sequence": 4,
   "rates": {
     "TWD": 1.0,
     "USD": 0.031,
