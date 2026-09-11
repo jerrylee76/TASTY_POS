@@ -213,70 +213,70 @@
     "category": "飲品",
     "name": "咖啡大",
     "price": 35.0,
-    "image": "",
+    "image": "images/咖啡.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "咖啡小",
     "price": 20.0,
-    "image": "",
+    "image": "images/咖啡.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "奶茶大",
     "price": 25.0,
-    "image": "",
+    "image": "images/奶茶.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "奶茶小",
     "price": 20.0,
-    "image": "",
+    "image": "images/奶茶.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "米漿大",
     "price": 24.0,
-    "image": "",
+    "image": "images/米漿.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "米漿小",
     "price": 19.0,
-    "image": "",
+    "image": "images/米漿.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "紅茶大",
     "price": 35.0,
-    "image": "",
+    "image": "images/紅茶.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "紅茶小",
     "price": 35.0,
-    "image": "",
+    "image": "images/紅茶.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "豆漿大",
     "price": 24.0,
-    "image": "",
+    "image": "images/豆漿.jpg",
     "barcode": ""
   },
   {
     "category": "飲品",
     "name": "豆漿小",
     "price": 19.0,
-    "image": "",
+    "image": "images/豆漿.jpg",
     "barcode": ""
   }
 ]
