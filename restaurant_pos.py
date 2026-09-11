@@ -9,6 +9,12 @@ import tkinter.font as tkfont
 from datetime import datetime, timedelta
 from tkinter import ttk, messagebox, simpledialog, colorchooser
 
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    Image = None
+    ImageTk = None
+
 
 APP_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(APP_DIR) if os.path.basename(APP_DIR).lower() == "outputs" else APP_DIR
@@ -116,6 +122,7 @@ class POSApp(tk.Tk):
         self.menu_images = []
         self.floating_order_win = None
         self.active_pending_order = None
+        self.tooltip_window = None
         self.current_order_no = self.next_order_no()
         self.title(self.t("title")); self.geometry("1180x720"); self.resizable(False, False); self.protocol("WM_DELETE_WINDOW", self.request_exit)
         try: self.overrideredirect(True); self.attributes("-fullscreen", True)
@@ -126,6 +133,23 @@ class POSApp(tk.Tk):
         self.after(250, self.show_guide)
 
     def t(self, key): return TEXT[self.lang].get(key, key)
+    def show_icon_tooltip(self, event, text):
+        self.hide_icon_tooltip()
+        self.tooltip_window = tk.Toplevel(self)
+        self.tooltip_window.wm_overrideredirect(True)
+        self.tooltip_window.attributes("-topmost", True)
+        self.tooltip_window.geometry(f"+{event.x_root + 12}+{event.y_root + 8}")
+        tk.Label(self.tooltip_window, text=text, bg="#fff8dc", fg="#202124", relief="solid", borderwidth=1, padx=8, pady=4, font=(self.settings.get("system_font", "Segoe UI"), 9)).pack()
+    def hide_icon_tooltip(self, _event=None):
+        if self.tooltip_window is not None:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+    def make_icon_button(self, parent, icon, text, command):
+        button = tk.Button(parent, text=icon, command=command, bg="#123b5d", fg="white", activebackground="#1d587f", activeforeground="white", relief="flat", borderwidth=0, font=("Segoe UI Symbol", 21), width=3, height=1, cursor="hand2")
+        button.bind("<Enter>", lambda event, label=text: self.show_icon_tooltip(event, label))
+        button.bind("<Leave>", self.hide_icon_tooltip)
+        button.pack(fill="x", padx=5, pady=3)
+        return button
     def request_exit(self):
         password = simpledialog.askstring("Password", "請輸入離開密碼 / Exit password", show="*", parent=self)
         if password is None: return
@@ -161,13 +185,21 @@ class POSApp(tk.Tk):
         top = ttk.Frame(self); top.pack(fill="x", padx=14, pady=(10, 6))
         ttk.Label(top, text=self.t("title"), style="Header.TLabel").pack(side="left")
         ttk.Label(top, text=datetime.now().strftime("%Y-%m-%d  %H:%M"), font=(self.settings.get("system_font", "Segoe UI"), 11)).pack(side="left", padx=18)
-        ttk.Button(top, text="離開 / Exit", command=self.request_exit).pack(side="right", padx=3)
         ttk.Button(top, text="中 / EN", command=self.toggle_language).pack(side="right", padx=3)
         main = ttk.Frame(self); main.pack(fill="both", expand=True, padx=14, pady=6)
         main.columnconfigure(0, weight=0); main.columnconfigure(1, weight=1); main.columnconfigure(2, weight=2); main.columnconfigure(3, weight=1); main.rowconfigure(0, weight=1)
         nav = tk.Frame(main, bg="#123b5d", width=74); nav.grid(row=0, column=0, sticky="ns", padx=(0, 8)); nav.grid_propagate(False)
-        for label, command in [("收銀\nPOS", lambda: None), ("統計", lambda: self.protected_action(self.show_stats)), ("歷史", lambda: self.protected_action(self.show_order_history)), ("設定", lambda: self.protected_action(self.show_settings)), ("編輯", lambda: self.protected_action(self.show_menu_editor)), ("計算機", self.show_calculator), ("關於\nAbout", self.show_about)]:
-            tk.Button(nav, text=label, command=command, bg="#123b5d", fg="white", activebackground="#1d587f", activeforeground="white", relief="flat", borderwidth=0, font=(self.settings.get("system_font", "Segoe UI"), 9), pady=12).pack(fill="x", padx=5, pady=3)
+        icon_actions = [
+            ("▣", "收銀 / POS", lambda: None),
+            ("▥", "業績統計 / Sales", lambda: self.protected_action(self.show_stats)),
+            ("↺", "歷史訂單 / History", lambda: self.protected_action(self.show_order_history)),
+            ("⚙", "系統設定 / Settings", lambda: self.protected_action(self.show_settings)),
+            ("✎", "菜單編輯 / Menu Edit", lambda: self.protected_action(self.show_menu_editor)),
+            ("＋", "計算機 / Calculator", self.show_calculator),
+            ("ⓘ", "關於 / About", self.show_about),
+            ("⇥", "離開 / Exit", self.request_exit),
+        ]
+        for icon, label, command in icon_actions: self.make_icon_button(nav, icon, label, command)
         left = ttk.Frame(main, style="Card.TFrame", padding=10); left.grid(row=0, column=1, sticky="nsew", padx=(0, 8))
         center = ttk.Frame(main, style="Card.TFrame", padding=10); center.grid(row=0, column=2, sticky="nsew", padx=(0, 8))
         right = ttk.Frame(main, style="Card.TFrame", padding=10); right.grid(row=0, column=3, sticky="nsew")
@@ -244,14 +276,25 @@ class POSApp(tk.Tk):
             if image_path:
                 full_path = image_path if os.path.isabs(image_path) else os.path.join(APP_DIR, image_path)
                 try:
-                    image = tk.PhotoImage(file=full_path)
-                    image = image.subsample(max(1, image.width() // 100), max(1, image.height() // 70))
+                    if Image is not None:
+                        source = Image.open(full_path).convert("RGBA")
+                        source.thumbnail((150, 150), Image.Resampling.LANCZOS)
+                        image_area = Image.new("RGBA", (150, 150), (255, 255, 255, 0))
+                        offset = ((150 - source.width) // 2, (150 - source.height) // 2)
+                        image_area.alpha_composite(source, offset)
+                        image = ImageTk.PhotoImage(image_area)
+                    else:
+                        image = tk.PhotoImage(file=full_path)
+                        scale = max(1, math.ceil(image.width() / 150), math.ceil(image.height() / 150))
+                        if scale > 1:
+                            image = image.subsample(scale, scale)
                     self.menu_images.append(image)
-                except tk.TclError:
+                except (OSError, tk.TclError):
                     image = None
-            b = ttk.Button(self.menu_frame, text=f"{name}\n${price:,.0f}", image=image, compound="top", style=category_styles.get(localized(group, self.lang), "Menu.TButton"), command=lambda n=name, p=price: self.add_item(n, p))
-            b.grid(row=i//4, column=i%4, sticky="nsew", padx=5, pady=5, ipadx=10, ipady=12)
-        for col in range(4): self.menu_frame.columnconfigure(col, weight=1)
+            b = ttk.Button(self.menu_frame, text=f"{name}  ${price:,.0f}", image=image, compound="top", width=18, style=category_styles.get(localized(group, self.lang), "Menu.TButton"), command=lambda n=name, p=price: self.add_item(n, p))
+            b.grid(row=i//4, column=i%4, sticky="nsew", padx=5, pady=5)
+        for col in range(4): self.menu_frame.columnconfigure(col, minsize=175, weight=0)
+        for row in range(math.ceil(len(items) / 4)): self.menu_frame.rowconfigure(row, minsize=195, weight=0)
 
     def add_item(self, name, price):
         self.cart[name] = self.cart.get(name, {"price": price, "qty": 0}); self.cart[name]["qty"] += 1; self.refresh_cart()

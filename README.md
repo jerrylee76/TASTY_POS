@@ -6,7 +6,7 @@
 python restaurant_pos.py
 ```
 
-需要 Python 3.9 以上；使用標準 Tkinter，不需要安裝第三方套件。
+需要 Python 3.9 以上。PNG/GIF 可直接使用；若要顯示 JPG/JPEG/WebP，請執行 `python -m pip install -r requirements.txt` 安裝 Pillow。
 
 ## 已包含功能
 
@@ -28,7 +28,7 @@ python restaurant_pos.py
 
 ## 後續可擴充
 
-目前「列印」先輸出 UTF-8 純文字收據，適合先驗證流程；接入實體熱敏印表機時，可把 `print_receipt()` 改接 Windows 印表機或 ESC/POS 驅動。修改 `menu.json` 後重新啟動程式即可載入新菜單。`category`、`name` 支援 `{ "zh": "中文", "en": "English" }`，另可加入 `barcode` 與 `image` 指向同目錄下的 PNG/GIF 圖片；圖片不存在時會自動退回文字顯示。
+目前「列印」先輸出 UTF-8 純文字收據，適合先驗證流程；接入實體熱敏印表機時，可把 `print_receipt()` 改接 Windows 印表機或 ESC/POS 驅動。修改 `menu.json` 後重新啟動程式即可載入新菜單。`category`、`name` 支援 `{ "zh": "中文", "en": "English" }`，另可加入 `barcode` 與 `image` 指向圖片；圖片會以 150×150 圖片區顯示，圖片不存在或格式無法讀取時會自動退回文字顯示。
 
 ## 全新 Windows 電腦設定
 
@@ -40,7 +40,7 @@ python --version
 python -m tkinter
 ```
 
-如果出現 Tkinter 測試視窗，即表示環境正常。本系統只使用 Python 標準函式庫，不需要安裝第三方套件。
+如果出現 Tkinter 測試視窗，即表示環境正常。若要使用 JPG/JPEG/WebP 菜單圖片，請執行 `python -m pip install -r requirements.txt`。
 
 3. 複製完整資料夾，至少包含 `restaurant_pos.py`、`menu.json`、`images` 與 `work`。`work\pos_data` 內含系統設定、歷史訂單和收據資料；要保留資料時不可漏掉此資料夾。
 4. 在 PowerShell 啟動：
@@ -50,7 +50,7 @@ cd "C:\你的路徑\TASTY_POS"
 python restaurant_pos.py
 ```
 
-5. 菜單圖片須放在 `images` 資料夾，並在 `menu.json` 使用正確的相對路徑，例如 `"image": "images/ribs_rice.png"`。圖片支援 PNG/GIF；圖片不存在時會顯示文字菜單。
+5. 菜單圖片須放在 `images` 資料夾，並在 `menu.json` 使用正確的相對路徑，例如 `"image": "images/ribs_rice.png"` 或 `"image": "images/images1.jpg"`。圖片會以 150×150 顯示；圖片不存在時會顯示文字菜單。
 6. 第一次使用的離開／歷史訂單刪除密碼是 `1234`，請登入後到「系統設定 → 安全性」修改。
 
 ## 打包成 Windows EXE

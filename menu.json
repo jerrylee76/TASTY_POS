@@ -3,210 +3,210 @@
     "category": "中式A",
     "name": "壽司",
     "price": 45.0,
-    "image": "",
+    "image": "images/壽司.jpg",
     "barcode": ""
   },
   {
     "category": "中式A",
     "name": "油條",
     "price": 19.0,
-    "image": "images/beef_noodles.png",
+    "image": "images/油條.jpg",
     "barcode": ""
   },
   {
     "category": "中式A",
     "name": "燒餅",
     "price": 15.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/燒餅.jpg",
     "barcode": ""
   },
   {
     "category": "中式A",
     "name": "荷包蛋",
     "price": 15.0,
-    "image": "",
+    "image": "images/荷包蛋.jpg",
     "barcode": ""
   },
   {
     "category": "中式A",
     "name": "葱蛋",
     "price": 25.0,
-    "image": "",
+    "image": "images/葱蛋.jpg",
     "barcode": ""
   },
   {
     "category": "中式A",
     "name": "雙胞胎",
     "price": 19.0,
-    "image": "",
+    "image": "images/雙胞胎.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "包子",
     "price": 20.0,
-    "image": "",
+    "image": "images/包子.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "小籠包一籠",
     "price": 70.0,
-    "image": "",
+    "image": "images/小籠包.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "小籠包一粒",
     "price": 7.0,
-    "image": "",
+    "image": "images/小籠包1.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "煎包",
     "price": 12.0,
-    "image": "",
+    "image": "images/煎包.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "煎餃",
     "price": 7.0,
-    "image": "",
+    "image": "images/煎餃.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "白饅頭",
     "price": 16.0,
-    "image": "",
+    "image": "images/白饅頭.jpg",
     "barcode": ""
   },
   {
     "category": "中式B",
     "name": "紅糖饅頭",
     "price": 18.0,
-    "image": "",
+    "image": "images/紅糖饅頭.jpg",
     "barcode": ""
   },
   {
     "category": "中式C",
     "name": "白米飯團",
     "price": 35.0,
-    "image": "",
+    "image": "images/白米飯團.jpg",
     "barcode": ""
   },
   {
     "category": "中式C",
     "name": "紫米飯團",
     "price": 40.0,
-    "image": "",
+    "image": "images/紫米飯團.jpg",
     "barcode": ""
   },
   {
     "category": "中式C",
     "name": "芙蓉酥一粒",
     "price": 28.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/芙蓉酥.jpg",
     "barcode": ""
   },
   {
     "category": "中式C",
     "name": "芙蓉酥二粒",
     "price": 55.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/芙蓉酥.jpg",
     "barcode": ""
   },
   {
     "category": "中式C",
     "name": "葱餅",
     "price": 25.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/葱餅.jpg",
     "barcode": ""
   },
   {
     "category": "中式C",
     "name": "蛋餅",
     "price": 30.0,
-    "image": "",
+    "image": "images/蛋餅.jpg",
     "barcode": ""
   },
   {
     "category": "中式F",
     "name": "甜甜圈",
     "price": 20.0,
-    "image": "",
+    "image": "images/甜甜圈.jpg",
     "barcode": ""
   },
   {
     "category": "中式F",
     "name": "紅豆餡餅",
     "price": 35.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/紅豆餡餅.jpg",
     "barcode": ""
   },
   {
     "category": "中式F",
     "name": "葱餡餅",
     "price": 35.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/葱餡餅.jpg",
     "barcode": ""
   },
   {
     "category": "中式F",
     "name": "酸菜餡餅",
     "price": 35.0,
-    "image": "images/ribs_rice.png",
+    "image": "images/酸菜餡餅.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "各式莎啦堡",
     "price": 35.0,
-    "image": "",
+    "image": "images/沙拉堡.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "咔啦堡",
     "price": 55.0,
-    "image": "",
+    "image": "images/咔拉堡.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "蛋香三明治",
     "price": 30.0,
-    "image": "",
+    "image": "images/蛋香三明治.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "起酥蛋糕",
     "price": 40.0,
-    "image": "",
+    "image": "images/起酥蛋糕.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "酥皮三明治",
     "price": 40.0,
-    "image": "",
+    "image": "images/酥皮三明治.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "酥皮總匯",
     "price": 40.0,
-    "image": "",
+    "image": "images/酥皮總匯.jpg",
     "barcode": ""
   },
   {
     "category": "洋食",
     "name": "香蒜吐司",
     "price": 25.0,
-    "image": "",
+    "image": "images/香蒜吐司.jpg",
     "barcode": ""
   },
   {
