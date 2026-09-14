@@ -241,7 +241,7 @@ class POSApp(tk.Tk):
         self.refresh_pending_orders()
         ttk.Label(right, text="帳單內容 / Bill Details", font=(self.settings.get("system_font", "Segoe UI"), 11, "bold")).pack(anchor="w", pady=(4, 3))
         bill_area = ttk.Frame(right); bill_area.pack(fill="both", expand=True, pady=(0, 8))
-        self.bill_list = tk.Listbox(bill_area, font=(self.settings.get("system_font", "Segoe UI"), int(self.settings.get("system_font_size", 10)))); self.bill_list.pack(fill="both", expand=True)
+        self.bill_list = tk.Listbox(bill_area, font=("Consolas", int(self.settings.get("system_font_size", 10))), activestyle="none"); self.bill_list.pack(fill="both", expand=True)
         pay = ttk.Frame(right); pay.pack(fill="x", pady=(12, 0))
         self.currency_var = tk.StringVar(value=self.settings.get("currency", "TWD"))
         ttk.Label(pay, text=self.t("currency")).grid(row=0, column=0, sticky="w")
@@ -319,7 +319,13 @@ class POSApp(tk.Tk):
         if not selection: return
         order = self.pending_orders[int(selection[0])]; self.active_pending_order = order; self.cart = {name: data.copy() for name, data in order.get("items", {}).items()}; self.current_order_no = order.get("order_no", self.current_order_no); self.order_no_var.set(f"NO. {self.current_order_no}")
         self.bill_list.delete(0, "end")
-        for name, item in self.cart.items(): self.bill_list.insert("end", f"{name}    x{item['qty']}    ${item['price']*item['qty']:,.2f}")
+        self.bill_list.insert("end", f"{'品項 / ITEM':<18}{'數量 / QTY':>6}{'金額 / AMOUNT':>12}")
+        self.bill_list.insert("end", "-" * 36)
+        for name, item in self.cart.items():
+            item_name = fit_receipt_text(name, 18)
+            quantity = f"{item['qty']:>6}"
+            amount = f"${item['price'] * item['qty']:,.2f}"
+            self.bill_list.insert("end", f"{item_name}{quantity}{amount:>12}")
         self.update_totals()
     def add_by_barcode(self, event=None):
         code = self.barcode_var.get().strip()
